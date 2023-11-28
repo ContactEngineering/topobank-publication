@@ -1,28 +1,12 @@
-import datetime
-import os.path
-import yaml
-import zipfile
-from pathlib import Path
 from io import BytesIO
 
 import pytest
-from pytest import approx
 
 from django.shortcuts import reverse
-from django.conf import settings
-from django.core.files.storage import default_storage
-from django.utils.text import slugify
-from rest_framework.test import APIRequestFactory
 
-from trackstats.models import Metric, Period
-
+from .fixtures import example_pub
 from .utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory, two_topos, \
     one_line_scan, upload_file
-from ..models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
-from ..views import DEFAULT_CONTAINER_FILENAME
-
-from topobank.utils import assert_in_content, \
-    assert_redirects, assert_no_form_errors, assert_form_error
 
 
 @pytest.mark.django_db
