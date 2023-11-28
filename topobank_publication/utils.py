@@ -2,8 +2,8 @@ import logging
 
 from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms, get_anonymous_user
 
-from topobank.topobank.manager.utils import api_to_guardian
-from topobank.topobank.users.utils import get_default_group
+from topobank.manager.utils import api_to_guardian
+from topobank.users.utils import get_default_group
 
 _log = logging.getLogger(__name__)
 

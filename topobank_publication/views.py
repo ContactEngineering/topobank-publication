@@ -14,16 +14,14 @@ from rest_framework import mixins, viewsets
 
 from trackstats.models import Metric, Period
 
-from topobank.topobank.manager.views import download_surface
-
-from .models import Publication
+from .forms import SurfacePublishForm
+from .models import Publication, MAX_LEN_AUTHORS_FIELD
 from .serializers import PublicationSerializer
+from .utils import NewPublicationTooFastException, PublicationException
 
-from topobank.topobank.manager.models import Surface
-from topobank.topobank.usage_stats.utils import increase_statistics_by_date_and_object
-from ..publication.models import MAX_LEN_AUTHORS_FIELD
-from ..publication.forms import SurfacePublishForm
-from ..publication.utils import NewPublicationTooFastException, PublicationException
+from topobank.manager.models import Surface
+from topobank.manager.views import download_surface
+from topobank.usage_stats.utils import increase_statistics_by_date_and_object
 
 _log = logging.getLogger(__name__)
 

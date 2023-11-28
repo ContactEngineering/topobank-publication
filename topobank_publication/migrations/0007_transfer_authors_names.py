@@ -6,7 +6,7 @@ from django.db import migrations
 
 def transfer_authors_string_to_authors_json(apps, schema_editor):
     """Convert author names to JSON."""
-    Publication = apps.get_model('publication', 'Publication')
+    Publication = apps.get_model('topobank_publication', 'Publication')
 
     for pub in Publication.objects.all():
         if pub.authors is not None:
@@ -45,7 +45,7 @@ def transfer_authors_json_to_authors_string(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('publication', '0006_publication_authors_json'),
+        ('topobank_publication', '0006_publication_authors_json'),
     ]
 
     operations = [

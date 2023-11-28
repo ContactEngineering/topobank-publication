@@ -7,9 +7,9 @@ from django.conf import settings
 from django.shortcuts import reverse
 from guardian.shortcuts import get_perms
 
-from topobank.topobank.manager.tests.utils import SurfaceFactory, UserFactory, Topography2DFactory, TagModelFactory
-from topobank.topobank.utils import assert_in_content, assert_not_in_content
-from topobank.topobank.manager.models import Surface
+from topobank.manager.tests.utils import SurfaceFactory, UserFactory, Topography2DFactory, TagModelFactory
+from topobank.utils import assert_in_content, assert_not_in_content
+from topobank.manager.models import Surface
 
 from ..forms import SurfacePublishForm
 from ..models import Publication

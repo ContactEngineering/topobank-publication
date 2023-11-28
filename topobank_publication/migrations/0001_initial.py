@@ -27,5 +27,8 @@ class Migration(migrations.Migration):
                 ('publisher', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to=settings.AUTH_USER_MODEL)),
                 ('surface', models.OneToOneField(on_delete=django.db.models.deletion.PROTECT, related_name='publication', to='manager.Surface')),
             ],
+            options={
+                'db_table': 'publication_publication'
+            }
         ),
     ]

@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('manager', '0041_auto_20231024_2107'),
-        ('publication', '0011_auto_20220228_1503'),
+        ('topobank_publication', '0011_auto_20220228_1503'),
     ]
 
     operations = [

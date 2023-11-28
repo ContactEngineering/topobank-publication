@@ -10,7 +10,7 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit, Layout, Field, HTML, Div
 from crispy_forms.bootstrap import FormActions
 
-from topobank.topobank.manager.models import Surface
+from topobank.manager.models import Surface
 
 _log = logging.getLogger(__name__)
 

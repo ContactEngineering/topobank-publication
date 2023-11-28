@@ -3,8 +3,8 @@ requires = ['setuptools>=40.8.0', 'setuptools_scm[toml]>=6.2', 'wheel']
 build-backend = 'setuptools.build_meta:__legacy__'
 
 [project]
-name = 'topobank-statistics'
-description = 'This is a plugin for "topobank" for statistical analysis of measurements and digital surface twins.'
+name = 'topobank-publication'
+description = 'This is a plugin for "topobank" for publishing digital surface twins (including assigning DOIs) via DataCite.'
 requires-python = '>=3.8.0'
 dynamic = ['dependencies', 'entry-points', 'optional-dependencies', 'version']
 readme = 'README.rst'
@@ -33,9 +33,9 @@ classifiers = [
 
 [project.urls]
 homepage = 'https://contact.engineering'
-repository = 'https://github.com/ContactEngineering/topobank-statistics'
+repository = 'https://github.com/ContactEngineering/topobank-publication'
 
 [tool.setuptools]
-py-modules = ['topobank_statistics']
+py-modules = ['topobank_publication']
 
 [tool.setuptools_scm]

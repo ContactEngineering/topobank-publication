@@ -3,7 +3,7 @@ from django.urls import re_path, path
 
 from rest_framework.routers import DefaultRouter
 
-from topobank.topobank.publication import views
+from topobank_publication import views
 
 router = DefaultRouter()
 router.register(r'api/publication', views.PublicationViewSet, basename='publication-api')
