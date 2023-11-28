@@ -2,4 +2,4 @@
 
 ## 1.0.0 (not yet released)
 
-- MAINT: Split publications module from main TopoBank
+- MAINT: Split `publication` module from main TopoBank
