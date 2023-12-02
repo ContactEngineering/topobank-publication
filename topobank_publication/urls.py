@@ -12,16 +12,6 @@ urlpatterns = router.urls
 
 app_name = "publication"
 urlpatterns += [
-    path(
-        '<str:short_url>/',
-        view=views.go,
-        name='go'
-    ),
-    path(
-        '<str:short_url>/download/',
-        view=views.download,
-        name='go-download'
-    ),
     re_path(
         r'publish/(?P<pk>\d+)/$',
         view=login_required(views.SurfacePublishView.as_view()),
@@ -37,4 +27,17 @@ urlpatterns += [
         view=login_required(views.PublicationErrorView.as_view()),
         name='surface-publication-error'
     ),
+]
+
+toplevel_urls = 'go/', [
+    path(
+        'go/<str:short_url>/',
+        view=views.go,
+        name='go'
+    ),
+    path(
+        'go/<str:short_url>/download/',
+        view=views.download,
+        name='go-download'
+    )
 ]
