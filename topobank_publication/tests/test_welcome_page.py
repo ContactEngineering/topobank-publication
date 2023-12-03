@@ -6,6 +6,7 @@ from topobank.utils import assert_in_content
 from topobank.analysis.tests.utils import TopographyAnalysisFactory
 from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory, UserFactory
 
+from ..models import Publication
 
 @pytest.mark.django_db
 @pytest.fixture
@@ -31,8 +32,7 @@ def test_instances(test_analysis_function):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize('with_publication', [False] if Publication is None else [False, True])
-def test_welcome_page_statistics(client, test_instances, with_publication, handle_usage_statistics):
+def test_welcome_page_statistics(client, test_instances, handle_usage_statistics):
 
     (user_1, user_2), (surface_1, surface_2), (topography_1,) = test_instances
     surface_2.share(user_2)
@@ -71,11 +71,7 @@ def test_welcome_page_statistics(client, test_instances, with_publication, handl
     assert_in_content(response, '<div class="welcome-page-statistics">0</div> digital surface twins')
     assert_in_content(response, '<div class="welcome-page-statistics">0</div> individual measurements')
     assert_in_content(response, '<div class="welcome-page-statistics">0</div> computed analyses')
-    if with_publication:
-        num_access = 2
-    else:
-        num_access = 1
-    assert_in_content(response, f'<div class="welcome-page-statistics">{num_access}</div> digital twins of other users')
+    assert_in_content(response, f'<div class="welcome-page-statistics">2</div> digital twins of other users')
 
     client.logout()
 
