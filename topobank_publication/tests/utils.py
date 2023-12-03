@@ -1,14 +1,15 @@
 """
 Helpers for testing the publication app.
 """
+
 import factory
 import datetime
 import short_url
-import json
 
-from topobank.publication.models import Publication
 from topobank.manager.tests.utils import SurfaceFactory
 from topobank.users.tests.test_utils import UserFactory
+
+from ..models import Publication
 
 
 class PublicationFactory(factory.django.DjangoModelFactory):

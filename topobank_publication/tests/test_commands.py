@@ -5,7 +5,7 @@ from django.core.management import call_command
 from django.conf import settings
 
 import pytest
-import topobank.publication.models
+import topobank_publication.models
 
 from .utils import PublicationFactory
 
@@ -17,7 +17,7 @@ def test_complete_dois(mocker, settings):
     pub3 = PublicationFactory()
 
     settings.PUBLICATION_DOI_MANDATORY = True
-    m = mocker.patch('topobank.publication.models.Publication.create_doi')
+    m = mocker.patch('topobank_publication.models.Publication.create_doi')
 
     call_command('complete_dois', do_it=True, force_draft=True)
 
@@ -32,7 +32,7 @@ def test_renew_containers(mocker, settings):
     pub3 = PublicationFactory()  # only this one should get a new container
 
     settings.PUBLICATION_DOI_MANDATORY = True
-    m = mocker.patch('topobank.publication.models.Publication.renew_container')
+    m = mocker.patch('topobank_publication.models.Publication.renew_container')
 
     call_command('renew_containers')
 

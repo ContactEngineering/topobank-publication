@@ -24,13 +24,11 @@ CITATION_FORMAT_FLAVORS = ['html', 'ris', 'bibtex', 'biblatex']
 DEFAULT_KEYWORDS = ['surface', 'topography']
 
 
-
-
-
 class Publication(models.Model):
     """Represents a publication of a digital surface twin."""
 
     class Meta:
+        app_label = 'publication'
         db_table = 'publication_publication'  # This used to be part of core topobank app
 
     LICENSE_CHOICES = [(k, settings.CC_LICENSE_INFOS[k]['option_name'])
