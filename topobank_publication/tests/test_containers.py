@@ -15,9 +15,10 @@ import topobank
 from topobank.manager.containers import write_surface_container
 from topobank.manager.models import Topography
 from topobank.manager.tests.utils import SurfaceFactory, Topography2DFactory, Topography1DFactory, TagModelFactory, \
-    UserFactory, FIXTURE_DIR
+    FIXTURE_DIR
+from topobank.users.tests.utils import UserFactory
 
-from .models import Publication
+from ..models import Publication
 
 
 @pytest.mark.django_db
