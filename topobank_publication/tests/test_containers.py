@@ -16,7 +16,7 @@ from topobank.manager.containers import write_surface_container
 from topobank.manager.models import Topography
 from topobank.manager.tests.utils import SurfaceFactory, Topography2DFactory, Topography1DFactory, TagModelFactory, \
     FIXTURE_DIR
-from topobank.users.tests.utils import UserFactory
+from topobank.users.tests.factories import UserFactory
 
 from ..models import Publication
 
