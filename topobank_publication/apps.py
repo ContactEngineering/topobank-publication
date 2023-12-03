@@ -1,6 +1,6 @@
 import logging
 from importlib.metadata import version
-__version__ = version("topobank-contact")
+__version__ = version("topobank-publication")
 
 try:
     from topobank.plugins import PluginConfig
