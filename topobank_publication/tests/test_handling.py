@@ -4,14 +4,12 @@ import pytest
 
 from django.shortcuts import reverse
 
-from .fixtures import example_pub
-from .utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory, two_topos, \
-    one_line_scan, upload_file
+from topobank.manager.tests.utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, \
+    UserFactory, two_topos, one_line_scan, upload_file
 
 
 @pytest.mark.django_db
-def test_usage_of_cached_container_on_download_of_published_surface(client, example_pub, mocker,
-                                                                    handle_usage_statistics):
+def test_usage_of_cached_container_on_download_of_published_surface(client, example_pub, mocker):
     user = UserFactory()
     client.force_login(user)
 

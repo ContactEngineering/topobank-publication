@@ -12,16 +12,16 @@ from django.conf import settings
 
 import topobank
 
-from ..containers import write_surface_container
-from ..models import Topography
+from topobank.manager.containers import write_surface_container
+from topobank.manager.models import Topography
+from topobank.manager.tests.utils import SurfaceFactory, Topography2DFactory, Topography1DFactory, TagModelFactory, \
+    UserFactory, FIXTURE_DIR
 
-from .utils import SurfaceFactory, Topography2DFactory, Topography1DFactory, TagModelFactory, UserFactory, FIXTURE_DIR
 from .models import Publication
 
 
 @pytest.mark.django_db
 def test_surface_container(example_authors):
-
     instrument_name = 'My nice profilometer'
     instrument_type = 'contact-based'
     instrument_params = {
@@ -152,5 +152,3 @@ def test_surface_container(example_authors):
         assert 'has_undefined_data' in topo1b_meta
 
     os.remove(outfile.name)
-
-
