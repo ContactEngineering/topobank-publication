@@ -1,12 +1,11 @@
 import pytest
 from django.shortcuts import reverse
 
-from ...analysis.tests.utils import TopographyAnalysisFactory
-from ...utils import assert_in_content, assert_not_in_content
-from ..utils import selection_from_session, selection_to_instances
+from ..models import Publication
 from .utils import UserFactory, SurfaceFactory, Topography1DFactory
 
-from topobank_publication.models import Publication
+from topobank.utils import assert_in_content, assert_not_in_content
+from topobank.manager.utils import selection_from_session, selection_to_instances
 
 
 @pytest.mark.django_db
