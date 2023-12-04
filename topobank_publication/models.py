@@ -62,7 +62,7 @@ class Publication(models.Model):
         return ", ".join([f"{a['first_name']} {a['last_name']}" for a in self.authors_json])
 
     def get_absolute_url(self):
-        return reverse('publication:go', args=[self.short_url])
+        return reverse('topobank_publication:go', args=[self.short_url])
 
     def get_full_url(self):
         """Return URL which should be used to permanently point to this publication.

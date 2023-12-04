@@ -1,8 +1,13 @@
+import datetime
+
 import pytest
+from freezegun import freeze_time
 
 from ..models import Publication
 
+from topobank.manager.tests.utils import SurfaceFactory
 from topobank.users.tests.factories import UserFactory
+
 
 @pytest.mark.django_db
 @pytest.fixture

@@ -1,4 +1,5 @@
 """Tests related to publication models."""
+
 import os
 import tempfile
 
@@ -117,10 +118,10 @@ def test_container_attributes_of_publication(example_pub):
 @pytest.mark.django_db
 def test_publication_full_url(example_pub, mocker, should_have_doi):
     if should_have_doi:
-        has_doi_mock = mocker.patch('topobank.publication.models.Publication.has_doi', new_callable=mocker.PropertyMock)
+        has_doi_mock = mocker.patch('topobank_publication.models.Publication.has_doi', new_callable=mocker.PropertyMock)
         has_doi_mock.return_value = True
 
-        doi_url_mock = mocker.patch('topobank.publication.models.Publication.doi_url', new_callable=mocker.PropertyMock)
+        doi_url_mock = mocker.patch('topobank_publication.models.Publication.doi_url', new_callable=mocker.PropertyMock)
         doi_url_mock.return_value = 'http://example.org'
 
         assert example_pub.get_full_url() == 'http://example.org'

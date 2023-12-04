@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 import logging
 
-from topobank.publication.models import Publication
+from topobank_publication.models import Publication
 
 _log = logging.getLogger(__name__)
 

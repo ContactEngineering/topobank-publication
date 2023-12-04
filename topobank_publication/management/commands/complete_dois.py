@@ -5,11 +5,12 @@ Each publication should have a DOI. Since the creation of DOIs
 hasn't be implemented from the beginning, we need this command
 to generate missing DOIs.
 """
+
 from django.core.management.base import BaseCommand
 from django.conf import settings
 import logging
 
-from topobank.publication.models import Publication
+from topobank_publication.models import Publication
 
 _log = logging.getLogger(__name__)
 

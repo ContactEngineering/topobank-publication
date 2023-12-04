@@ -7,6 +7,8 @@ from django.shortcuts import reverse
 from topobank.manager.tests.utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, \
     UserFactory, two_topos, one_line_scan, upload_file
 
+from .fixtures import example_pub
+
 
 @pytest.mark.django_db
 def test_usage_of_cached_container_on_download_of_published_surface(client, example_pub, mocker):
