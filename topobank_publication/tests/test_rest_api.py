@@ -3,8 +3,10 @@ import pytest
 from django.shortcuts import reverse
 
 from topobank.manager.models import Surface, Topography
+from topobank.manager.tests.utils import two_users
 
 from ..models import Publication
+
 
 
 @pytest.mark.django_db(transaction=True)
