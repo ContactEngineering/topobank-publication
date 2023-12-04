@@ -1,13 +1,17 @@
 """Tests related to views."""
-import pytest
-from django.shortcuts import reverse
+
+import yaml
 import zipfile
 from io import BytesIO
-import yaml
+
+import pytest
+
+from django.shortcuts import reverse
 
 from topobank.manager.tests.utils import UserFactory
 from topobank.utils import assert_in_content
 
+from .fixtures import example_pub
 
 @pytest.mark.django_db
 def test_go_link(client, example_pub):

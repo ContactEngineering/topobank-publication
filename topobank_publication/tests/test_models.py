@@ -12,6 +12,7 @@ from freezegun import freeze_time
 
 from topobank.manager.tests.utils import two_topos, SurfaceFactory, UserFactory, Topography1DFactory, Topography2DFactory
 
+from ..models import Publication
 from .fixtures import example_pub
 
 
