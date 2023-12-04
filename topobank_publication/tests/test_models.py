@@ -12,6 +12,8 @@ from freezegun import freeze_time
 
 from topobank.manager.tests.utils import two_topos, SurfaceFactory, UserFactory, Topography1DFactory, Topography2DFactory
 
+from .fixtures import example_pub
+
 
 @pytest.mark.django_db
 def test_publication_publisher_orcid_id(example_pub):
