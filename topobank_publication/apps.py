@@ -28,7 +28,10 @@ class PublicationPluginConfig(PluginConfig):
         from topobank.manager.serializers import SurfaceSerializer
         from .serializers import PublicationSerializer
         SurfaceSerializer.publication = PublicationSerializer(read_only=True)
-        SurfaceSerializer.Meta.fields += ['publication']
+        try:
+            SurfaceSerializer.Meta.read_only_fields += ['publication']
+        except AttributeError:
+            SurfaceSerializer.Meta.read_only_fields = ['publication']
 
         # make sure the signals are registered now
         import topobank_publication.signals
