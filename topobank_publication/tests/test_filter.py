@@ -9,8 +9,6 @@ from topobank.manager.tests.utils import SurfaceFactory, UserFactory
 
 @pytest.mark.django_db
 def test_sharing_status_filter(api_client, example_authors, handle_usage_statistics):
-    print(dir(Surface))
-
     lancelot = UserFactory(name="lancelot")
     parceval = UserFactory(name="parceval")
 
