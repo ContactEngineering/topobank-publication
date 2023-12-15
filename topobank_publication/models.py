@@ -12,6 +12,9 @@ from django.conf import settings
 from datacite import schema42, DataCiteRESTClient
 from datacite.errors import DataCiteError, HttpError
 
+from topobank.users.models import User
+from topobank.manager.models import Surface
+
 from .utils import (AlreadyPublishedException, DOICreationException, NewPublicationTooFastException,
                     PublicationsDisabledException, PublicationException, UnknownCitationFormat,
                     set_publication_permissions)
@@ -28,7 +31,7 @@ class Publication(models.Model):
     """Represents a publication of a digital surface twin."""
 
     class Meta:
-        app_label = 'publication'
+        app_label = 'topobank_publication'
         db_table = 'publication_publication'  # This used to be part of core topobank app
 
     LICENSE_CHOICES = [(k, settings.CC_LICENSE_INFOS[k]['option_name'])
@@ -40,11 +43,11 @@ class Publication(models.Model):
                          for k in [DOI_STATE_DRAFT, DOI_STATE_REGISTERED, DOI_STATE_FINDABLE]]
 
     short_url = models.CharField(max_length=10, unique=True, null=True)
-    surface = models.OneToOneField("manager.Surface", on_delete=models.PROTECT, related_name='publication')
-    original_surface = models.ForeignKey("manager.Surface", on_delete=models.PROTECT,
+    surface = models.OneToOneField(Surface, on_delete=models.PROTECT, related_name='publication')
+    original_surface = models.ForeignKey(Surface, on_delete=models.PROTECT,
                                          # original surface can no longer be deleted once published
                                          null=True, related_name='derived_publications')
-    publisher = models.ForeignKey("users.User", on_delete=models.PROTECT)
+    publisher = models.ForeignKey(User, on_delete=models.PROTECT)
     publisher_orcid_id = models.CharField(max_length=19, default='')  # 16 digits including 3 dashes
     version = models.PositiveIntegerField(default=1)
     datetime = models.DateTimeField(auto_now_add=True)

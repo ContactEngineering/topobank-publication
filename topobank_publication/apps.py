@@ -31,4 +31,3 @@ class PublicationPluginConfig(PluginConfig):
 
         # make sure the signals are registered now
         import topobank_publication.signals
-
