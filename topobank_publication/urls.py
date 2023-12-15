@@ -11,29 +11,30 @@ router.register(r'api/publication', views.PublicationViewSet, basename='publicat
 urlpatterns = router.urls
 
 app_name = "topobank_publication"
+urlprefix = 'go/'
 urlpatterns += [
     re_path(
-        r'publish/(?P<pk>\d+)/$',
+        r'html/publish/(?P<pk>\d+)/$',
         view=login_required(views.SurfacePublishView.as_view()),
         name='surface-publish'
     ),
     re_path(
-        r'publish/(?P<pk>\d+)/publication-rate-too-high/$',
+        r'html/publish/(?P<pk>\d+)/publication-rate-too-high/$',
         view=login_required(views.PublicationRateTooHighView.as_view()),
         name='surface-publication-rate-too-high'
     ),
     re_path(
-        r'publish/(?P<pk>\d+)/publication-error/$',
+        r'html/publish/(?P<pk>\d+)/publication-error/$',
         view=login_required(views.PublicationErrorView.as_view()),
         name='surface-publication-error'
     ),
     path(
-        'go/<str:short_url>/',
+        '<str:short_url>/',
         view=views.go,
         name='go'
     ),
     path(
-        'go/<str:short_url>/download/',
+        '<str:short_url>/download/',
         view=views.download,
         name='go-download'
     )

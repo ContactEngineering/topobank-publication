@@ -21,6 +21,7 @@ class PublicationPluginConfig(PluginConfig):
         Publish digital surface twins and assign DOIs via DataCite
         """
         logo = "topobank_publication/static/images/ce_logo.svg"
+        restricted = False  # Accessible for all users, without permissions
 
     def ready(self):
         # monkey patch surface serializer to add a 'publication' field

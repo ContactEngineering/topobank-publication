@@ -51,8 +51,7 @@ def go(request, short_url):
     except Publication.DoesNotExist:
         raise Http404()
 
-    increase_statistics_by_date_and_object(Metric.objects.PUBLICATION_VIEW_COUNT,
-                                           period=Period.DAY, obj=pub)
+    increase_statistics_by_date_and_object(Metric.objects.PUBLICATION_VIEW_COUNT, period=Period.DAY, obj=pub)
     return redirect(pub.surface.get_absolute_url())
 
 
