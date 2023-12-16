@@ -9,7 +9,7 @@ from ..models import Publication
 
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
 def test_delete_surface_routes(api_client, two_users, handle_usage_statistics):
     topo1, topo2, topo3 = Topography.objects.all()
     surface3 = topo3.surface
