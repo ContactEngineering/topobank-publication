@@ -52,7 +52,7 @@ jobs:
         git clone -b 23_separate_ui https://github.com/ContactEngineering/topobank.git
         git clone https://github.com/ContactEngineering/ce-ui.git
         popd
-        pip-compile --extra dev pyproject.toml /tmp/topobank/pyproject.toml /tmp/ce_ui/pyproject.toml
+        pip-compile --extra dev pyproject.toml /tmp/topobank/pyproject.toml /tmp/ce-ui/pyproject.toml
         pip install -r requirements.txt
         pip install /tmp/ce_ui
         pushd /tmp/topobank
