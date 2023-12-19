@@ -54,7 +54,7 @@ jobs:
         popd
         pip-compile --extra dev pyproject.toml /tmp/topobank/pyproject.toml /tmp/ce-ui/pyproject.toml
         pip install -r requirements.txt
-        pip install /tmp/ce_ui
+        pip install /tmp/ce-ui
         pushd /tmp/topobank
         USE_DOCKER=no python manage.py collectstatic
         popd
