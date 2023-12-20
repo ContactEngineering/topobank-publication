@@ -1,11 +1,12 @@
+import importlib.metadata
 import logging
-from importlib.metadata import version
-__version__ = version("topobank-publication")
+
+from topobank.plugins import PluginConfig
 
 try:
-    from topobank.plugins import PluginConfig
-except ImportError:
-    raise RuntimeError("Please use topobank 0.92.0 or above to use this plugin!")
+    __version__ = importlib.metadata.version('topobank-publication')
+except importlib.metadata.PackageNotFoundError:
+    __version__ = '0.0.0'
 
 _log = logging.Logger(__file__)
 

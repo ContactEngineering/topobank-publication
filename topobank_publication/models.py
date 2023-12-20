@@ -1,5 +1,6 @@
 import logging
 import math
+import os.path
 from io import BytesIO
 
 from django.db import models
@@ -553,3 +554,7 @@ class Publication(models.Model):
         _log.info(f"DOI name of publication: {pub.doi_name}")
 
         return pub
+
+
+    def get_license_legalcode_filepath(self):
+        return f'{os.path.dirname(__file__)}/static/licenses/{self.license}-legalcode.txt'
