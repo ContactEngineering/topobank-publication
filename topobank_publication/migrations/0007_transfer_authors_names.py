@@ -6,7 +6,7 @@ from django.db import migrations
 
 def transfer_authors_string_to_authors_json(apps, schema_editor):
     """Convert author names to JSON."""
-    Publication = apps.get_model('topobank_publication', 'Publication')
+    Publication = apps.get_model('publication', 'Publication')
 
     for pub in Publication.objects.all():
         if pub.authors is not None:
