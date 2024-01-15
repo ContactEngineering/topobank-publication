@@ -2,7 +2,7 @@ from io import BytesIO
 
 import pytest
 
-from django.shortcuts import re verse
+from django.shortcuts import reverse
 
 from topobank.manager.tests.utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, \
     UserFactory, two_topos, one_line_scan, upload_file
