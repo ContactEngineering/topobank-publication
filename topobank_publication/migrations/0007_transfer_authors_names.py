@@ -45,7 +45,7 @@ def transfer_authors_json_to_authors_string(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('topobank_publication', '0006_publication_authors_json'),
+        ('publication', '0006_publication_authors_json'),
     ]
 
     operations = [

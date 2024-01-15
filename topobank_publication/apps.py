@@ -13,6 +13,7 @@ _log = logging.Logger(__file__)
 
 class PublicationPluginConfig(PluginConfig):
     name = 'topobank_publication'
+    label = 'publication'
     verbose_name = "Publication"
 
     class TopobankPluginMeta:
