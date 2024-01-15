@@ -26,7 +26,7 @@ class PublicationSerializer(serializers.HyperlinkedModelSerializer):
                   'citation',
                   'has_access_to_original_surface']
 
-    url = serializers.HyperlinkedIdentityField(view_name='topobank_publication:publication-api-detail', read_only=True)
+    url = serializers.HyperlinkedIdentityField(view_name='publication:publication-api-detail', read_only=True)
     surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail', read_only=True)
     original_surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail', read_only=True)
     publisher = UserSerializer(read_only=True)

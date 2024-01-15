@@ -17,7 +17,7 @@ from .fixtures import example_pub
 def test_go_link(client, example_pub):
     user = UserFactory()
     client.force_login(user)
-    url = reverse('topobank_publication:go', kwargs=dict(short_url=example_pub.short_url))
+    url = reverse('publication:go', kwargs=dict(short_url=example_pub.short_url))
     assert url == f'/go/{example_pub.short_url}/'
     response = client.get(url, follow=False)
     assert response.status_code == 302
@@ -28,7 +28,7 @@ def test_go_link(client, example_pub):
 def test_go_download_link(client, example_pub, handle_usage_statistics):
     user = UserFactory()
     client.force_login(user)
-    response = client.get(reverse('topobank_publication:go-download', kwargs=dict(short_url=example_pub.short_url)), follow=True)
+    response = client.get(reverse('publication:go-download', kwargs=dict(short_url=example_pub.short_url)), follow=True)
     assert response.status_code == 200
 
     surface = example_pub.surface
@@ -46,5 +46,5 @@ def test_go_download_link(client, example_pub, handle_usage_statistics):
 
 @pytest.mark.django_db
 def test_redirection_invalid_publication_link(client, handle_usage_statistics):
-    response = client.get(reverse('topobank_publication:go', kwargs=dict(short_url='THISISNONSENSE')))
+    response = client.get(reverse('publication:go', kwargs=dict(short_url='THISISNONSENSE')))
     assert response.status_code == 404
