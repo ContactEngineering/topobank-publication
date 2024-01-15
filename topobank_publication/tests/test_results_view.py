@@ -6,7 +6,7 @@ from django.urls import reverse
 
 from ..models import Publication
 
-from topobank.manager.tests.utils import SurfaceFactory, UserFactory, Topography1DFactory, two_topos
+from topobank.manager.tests.utils import SurfaceFactory, UserFactory, Topography1DFactory
 from topobank.analysis.tests.utils import TopographyAnalysisFactory, SurfaceAnalysisFactory
 
 

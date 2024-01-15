@@ -11,7 +11,6 @@ from django.shortcuts import reverse
 from topobank.manager.tests.utils import UserFactory
 from topobank.utils import assert_in_content
 
-from .fixtures import example_pub
 
 @pytest.mark.django_db
 def test_go_link(client, example_pub):
@@ -21,7 +20,7 @@ def test_go_link(client, example_pub):
     assert url == f'/go/{example_pub.short_url}/'
     response = client.get(url, follow=False)
     assert response.status_code == 302
-    assert response.url.endswith(f'surface={example_pub.surface.id}')
+    assert response.url.endswith(f'{example_pub.surface.id}/')
 
 
 @pytest.mark.django_db
