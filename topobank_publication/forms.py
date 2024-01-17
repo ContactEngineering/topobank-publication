@@ -54,7 +54,7 @@ class SurfacePublishForm(forms.Form):
             Field('agreed'),
             Field('copyright_hold'),
             FormActions(
-                Submit('save', 'Yes, publish this surface', css_class='btn-success'),
+                Submit('save', 'Yes, publish this digital surface twin', css_class='btn-success'),
                 HTML("""
                       <a href="{% url 'ce_ui:surface-detail' %}?surface={{ surface.pk }}" class="btn btn-default" id="cancel-btn">Cancel</a>
                       """),
