@@ -37,11 +37,23 @@ class PublicationViewSet(mixins.ListModelMixin,
     # FIXME! This view needs pagination
 
     def get_queryset(self):
+        q = Publication.objects.all()
+        order_by_version = False
         try:
             original_surface = int(self.request.query_params.get('original_surface', default=None))
-            return Publication.objects.filter(original_surface=original_surface).order_by('-version')
+            q = q.filter(original_surface=original_surface)
+            order_by_version = True
         except TypeError:
-            return Publication.objects.all()
+            pass
+        try:
+            surface = int(self.request.query_params.get('surface', default=None))
+            q = q.filter(surface=surface)
+            order_by_version = True
+        except TypeError:
+            pass
+        if order_by_version:
+            q = q.order_by('-version')
+        return q
 
 
 def go(request, short_url):
