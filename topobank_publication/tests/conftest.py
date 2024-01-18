@@ -14,7 +14,7 @@ from topobank.organizations.tests.utils import OrganizationFactory
 
 @pytest.mark.django_db
 @pytest.fixture
-def example_pub(example_authors):
+def example_pub(example_authors):  # noqa: F811
     """Fixture returning a publication which can be used as test example"""
 
     user = UserFactory()
