@@ -77,4 +77,3 @@ def set_publication_permissions(surface):
     # Here "remove_perm" does not work. We do not allow this. See GH 704.
     if 'change_surface' in get_perms(surface.creator, surface):
         raise PublicationException("Withdrawing permissions for publication did not work!")
-

@@ -5,8 +5,9 @@ from freezegun import freeze_time
 
 from ..models import Publication
 
-from topobank.manager.tests.utils import one_line_scan, two_users, SurfaceFactory
+from topobank.manager.tests.utils import one_line_scan, two_users, SurfaceFactory  # noqa: F401
 from topobank.users.tests.factories import UserFactory
+from topobank.organizations.tests.utils import OrganizationFactory
 
 
 @pytest.mark.django_db
@@ -27,3 +28,13 @@ def example_pub(example_authors):
         pub = Publication.publish(surface, 'cc0-1.0', example_authors)
 
     return pub
+
+
+@pytest.mark.django_db
+@pytest.fixture
+def user_with_plugin():
+    org_name = "Test Organization"
+    org = OrganizationFactory(name=org_name, plugins_available="topobank_publication")
+    user = UserFactory()
+    user.groups.add(org.group)
+    return user

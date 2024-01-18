@@ -408,11 +408,13 @@ class Publication(models.Model):
                 rest_client.update_url(doi=doi_name, url=pub_full_url)
             elif requested_doi_state == Publication.DOI_STATE_REGISTERED:
                 _log.info(
-                    f"Creating registered DOI '{doi_name}' for publication '{self.short_url}' linked to {pub_full_url}...")
+                    f"Creating registered DOI '{doi_name}' for publication '{self.short_url}' "
+                    f"linked to {pub_full_url}...")
                 rest_client.private_doi(data, url=pub_full_url, doi=doi_name)
             elif requested_doi_state == Publication.DOI_STATE_FINDABLE:
                 _log.info(
-                    f"Creating findable DOI '{doi_name}' for publication '{self.short_url}' linked to {pub_full_url}...")
+                    f"Creating findable DOI '{doi_name}' for publication '{self.short_url}' "
+                    f"linked to {pub_full_url}...")
                 rest_client.public_doi(data, url=pub_full_url, doi=doi_name)
             else:
                 raise DataCiteError(f"Requested DOI state {requested_doi_state} is unknown.")
@@ -507,7 +509,7 @@ class Publication(models.Model):
 
         try:
             set_publication_permissions(copy)
-        except PublicationException as exc:
+        except PublicationException:
             # see GH 704
             _log.error(f"Could not set permission for copied surface to publish ... "
                        f"deleting copy (surface {copy.pk}) of surface {surface.pk}.")
@@ -548,13 +550,12 @@ class Publication(models.Model):
         else:
             _log.info("Skipping creation of DOI, because it is not configured as mandatory.")
 
-        _log.info(f"Published surface {surface.name} (id: {surface.id}) " + \
+        _log.info(f"Published surface {surface.name} (id: {surface.id}) " +
                   f"with license {license}, version {version}, authors '{authors}'")
         _log.info(f"Direct URL of publication: {pub.get_absolute_url()}")
         _log.info(f"DOI name of publication: {pub.doi_name}")
 
         return pub
-
 
     def get_license_legalcode_filepath(self):
         return f'{os.path.dirname(__file__)}/static/licenses/{self.license}-legalcode.txt'

@@ -11,7 +11,7 @@ def test_sharing_status_filter(api_client, example_authors, handle_usage_statist
     lancelot = UserFactory(name="lancelot")
     parceval = UserFactory(name="parceval")
 
-    surface_own_hidden = SurfaceFactory(name="own-hidden", creator=lancelot)
+    SurfaceFactory(name="own-hidden", creator=lancelot)
 
     surface_shared_egress = SurfaceFactory(name="shared-egress", creator=lancelot)
     surface_shared_egress.share(parceval)
@@ -24,7 +24,7 @@ def test_sharing_status_filter(api_client, example_authors, handle_usage_statist
     surface_shared_ingress.share(lancelot)
     surface_published_ingress = SurfaceFactory(name="published-ingress", creator=parceval)
     Publication.publish(surface_published_ingress, 'cc0-1.0', example_authors)
-    surface_published_invisible = SurfaceFactory(name="invisible", creator=parceval)
+    SurfaceFactory(name="invisible", creator=parceval)
 
     api_client.force_login(lancelot)
 
