@@ -10,10 +10,9 @@ import yaml
 
 from freezegun import freeze_time
 
-from topobank.manager.tests.utils import two_topos, SurfaceFactory, UserFactory, Topography1DFactory, Topography2DFactory
+from topobank.manager.tests.utils import SurfaceFactory, UserFactory, Topography1DFactory, Topography2DFactory
 
 from ..models import Publication
-from .fixtures import example_pub
 
 
 @pytest.mark.django_db

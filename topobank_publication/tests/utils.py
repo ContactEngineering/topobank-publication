@@ -7,7 +7,7 @@ import datetime
 import short_url
 
 from topobank.manager.tests.utils import SurfaceFactory
-from topobank.users.tests.test_utils import UserFactory
+from topobank.users.tests.factories import UserFactory
 
 from ..models import Publication
 

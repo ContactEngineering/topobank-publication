@@ -41,12 +41,12 @@ class SurfacePublishForm(forms.Form):
     helper.layout = Layout(
         Div(
             HTML('<h2 class="alert-heading">Please enter the authors</h2>'),
-            Field('authors_json', template="publication/multi_author_field.html"),
+            Field('authors_json', template="multi_author_field.html"),
             css_class="alert alert-primary"
         ),
         Div(
             HTML('<h2 class="alert-heading">Please choose a license</h2>'),
-            Field('license', template="publication/license_radioselect.html"),
+            Field('license', template="license_radioselect.html"),
             css_class="alert alert-primary"
         ),
         Div(
@@ -54,9 +54,9 @@ class SurfacePublishForm(forms.Form):
             Field('agreed'),
             Field('copyright_hold'),
             FormActions(
-                Submit('save', 'Yes, publish this surface', css_class='btn-success'),
+                Submit('save', 'Yes, publish this digital surface twin', css_class='btn-success'),
                 HTML("""
-                      <a href="{% url 'manager:surface-detail' %}?surface={{ surface.pk }}" class="btn btn-default" id="cancel-btn">Cancel</a>
+                      <a href="{% url 'ce_ui:surface-detail' %}?surface={{ surface.pk }}" class="btn btn-default" id="cancel-btn">Cancel</a>
                       """),
             ),
             ASTERISK_HELP_HTML,

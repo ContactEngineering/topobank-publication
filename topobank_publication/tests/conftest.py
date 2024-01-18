@@ -5,7 +5,7 @@ from freezegun import freeze_time
 
 from ..models import Publication
 
-from topobank.manager.tests.utils import SurfaceFactory
+from topobank.manager.tests.utils import one_line_scan, two_users, SurfaceFactory
 from topobank.users.tests.factories import UserFactory
 
 

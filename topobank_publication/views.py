@@ -37,11 +37,23 @@ class PublicationViewSet(mixins.ListModelMixin,
     # FIXME! This view needs pagination
 
     def get_queryset(self):
+        q = Publication.objects.all()
+        order_by_version = False
         try:
             original_surface = int(self.request.query_params.get('original_surface', default=None))
-            return Publication.objects.filter(original_surface=original_surface).order_by('-version')
+            q = q.filter(original_surface=original_surface)
+            order_by_version = True
         except TypeError:
-            return Publication.objects.all()
+            pass
+        try:
+            surface = int(self.request.query_params.get('surface', default=None))
+            q = q.filter(surface=surface)
+            order_by_version = True
+        except TypeError:
+            pass
+        if order_by_version:
+            q = q.order_by('-version')
+        return q
 
 
 def go(request, short_url):
@@ -66,7 +78,7 @@ def download(request, short_url):
 
 
 class SurfacePublishView(FormView):
-    template_name = "publication/surface_publish.html"
+    template_name = "surface_publish.html"
     form_class = SurfacePublishForm
 
     @surface_publish_permission_required
@@ -95,7 +107,7 @@ class SurfacePublishView(FormView):
     #     return kwargs
 
     def get_success_url(self):
-        return f"{reverse('manager:surface-detail')}?surface={self.kwargs['pk']}"
+        return f"{reverse('ce_ui:surface-detail')}?surface={self.kwargs['pk']}"
 
     def form_valid(self, form):
         license = form.cleaned_data.get('license')
@@ -125,7 +137,7 @@ class SurfacePublishView(FormView):
                 'title': f"{surface.label}",
                 'icon': "gem",
                 'icon_style_prefix': 'far',
-                'href': f"{reverse('manager:surface-detail')}?surface={surface.pk}",
+                'href': f"{reverse('ce_ui:surface-detail')}?surface={surface.pk}",
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
             },
@@ -150,7 +162,7 @@ class SurfacePublishView(FormView):
 
 
 class PublicationRateTooHighView(TemplateView):
-    template_name = "publication/publication_rate_too_high.html"
+    template_name = "publication_rate_too_high.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -164,7 +176,7 @@ class PublicationRateTooHighView(TemplateView):
                 'title': f"{surface.label}",
                 'icon': "gem",
                 'icon_style_prefix': 'far',
-                'href': f"{reverse('manager:surface-detail')}?surface={surface.pk}",
+                'href': f"{reverse('ce_ui:surface-detail')}?surface={surface.pk}",
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
             },
@@ -179,7 +191,7 @@ class PublicationRateTooHighView(TemplateView):
 
 
 class PublicationErrorView(TemplateView):
-    template_name = "publication/publication_error.html"
+    template_name = "publication_error.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -192,7 +204,7 @@ class PublicationErrorView(TemplateView):
                 'title': f"{surface.label}",
                 'icon': "gem",
                 'icon_style_prefix': 'far',
-                'href': f"{reverse('manager:surface-detail')}?surface={surface.pk}",
+                'href': f"{reverse('ce_ui:surface-detail')}?surface={surface.pk}",
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
             },

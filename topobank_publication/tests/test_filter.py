@@ -3,7 +3,6 @@ from django.urls import reverse
 
 from ..models import Publication
 
-from topobank.manager.models import Surface
 from topobank.manager.tests.utils import SurfaceFactory, UserFactory
 
 
@@ -29,24 +28,24 @@ def test_sharing_status_filter(api_client, example_authors, handle_usage_statist
 
     api_client.force_login(lancelot)
 
-    result = api_client.get(reverse('manager:search') + '?sharing_status=all').data["page_results"]
+    result = api_client.get(reverse('ce_ui:search') + '?sharing_status=all').data["page_results"]
     assert len(result) == 6
 
-    result = api_client.get(reverse('manager:search') + '?sharing_status=own').data["page_results"]
+    result = api_client.get(reverse('ce_ui:search') + '?sharing_status=own').data["page_results"]
     assert len(result) == 4
 
-    result = api_client.get(reverse('manager:search') + '?sharing_status=shared_ingress').data["page_results"]
+    result = api_client.get(reverse('ce_ui:search') + '?sharing_status=shared_ingress').data["page_results"]
     assert len(result) == 1
     assert result[0]['name'] == "shared-ingress"
 
-    result = api_client.get(reverse('manager:search') + '?sharing_status=published_ingress').data["page_results"]
+    result = api_client.get(reverse('ce_ui:search') + '?sharing_status=published_ingress').data["page_results"]
     assert len(result) == 1
     assert result[0]['name'] == "published-ingress"
 
-    result = api_client.get(reverse('manager:search') + '?sharing_status=shared_egress').data["page_results"]
+    result = api_client.get(reverse('ce_ui:search') + '?sharing_status=shared_egress').data["page_results"]
     assert len(result) == 1
     assert result[0]['name'] == "shared-egress"
 
-    result = api_client.get(reverse('manager:search') + '?sharing_status=published_egress').data["page_results"]
+    result = api_client.get(reverse('ce_ui:search') + '?sharing_status=published_egress').data["page_results"]
     assert len(result) == 1
     assert result[0]['name'] == "published-egress"

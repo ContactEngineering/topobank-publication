@@ -1,5 +1,6 @@
 import logging
 import math
+import os.path
 from io import BytesIO
 
 from django.db import models
@@ -64,7 +65,7 @@ class Publication(models.Model):
         return ", ".join([f"{a['first_name']} {a['last_name']}" for a in self.authors_json])
 
     def get_absolute_url(self):
-        return reverse('topobank_publication:go', args=[self.short_url])
+        return reverse('publication:go', args=[self.short_url])
 
     def get_full_url(self):
         """Return URL which should be used to permanently point to this publication.
@@ -553,3 +554,7 @@ class Publication(models.Model):
         _log.info(f"DOI name of publication: {pub.doi_name}")
 
         return pub
+
+
+    def get_license_legalcode_filepath(self):
+        return f'{os.path.dirname(__file__)}/static/licenses/{self.license}-legalcode.txt'
