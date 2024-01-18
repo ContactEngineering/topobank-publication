@@ -4,8 +4,7 @@ import pytest
 
 from django.shortcuts import reverse
 
-from topobank.manager.tests.utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, \
-    UserFactory, upload_file
+from topobank.manager.tests.utils import UserFactory
 
 
 @pytest.mark.django_db
@@ -18,7 +17,6 @@ def test_usage_of_cached_container_on_download_of_published_surface(client, exam
     surface = example_pub.surface
 
     # we don't need the correct container here, so we just return some fake data
-    import topobank.manager.containers
     write_container_mock = mocker.patch('topobank.manager.views.write_surface_container', autospec=True)
     write_container_mock.return_value = BytesIO(b'Hello Test')
 

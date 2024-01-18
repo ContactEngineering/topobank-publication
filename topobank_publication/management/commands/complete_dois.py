@@ -52,11 +52,11 @@ class Command(BaseCommand):
         #
         self.stdout.write(self.style.SUCCESS('Settings related to DOI generation:'))
         for settings_name in ['PUBLICATION_URL_PREFIX', 'PUBLICATION_DOI_PREFIX',
-                  'DATACITE_USERNAME', 'DATACITE_API_URL', 'PUBLICATION_DOI_STATE']:
+                              'DATACITE_USERNAME', 'DATACITE_API_URL', 'PUBLICATION_DOI_STATE']:
             self.stdout.write(self.style.SUCCESS(f'{settings_name}: {getattr(settings, settings_name)}'))
 
         if options['force_draft']:
-            self.stdout.write(self.style.WARNING(f'Doi state will be draft due to given switch!'))
+            self.stdout.write(self.style.WARNING('Doi state will be draft due to given switch!'))
 
         #
         # Traverse publications
@@ -76,7 +76,7 @@ class Command(BaseCommand):
                 _log.info(f"Publication '{pub.doi_name}' already has a DOI, skipping.")
                 continue
 
-            _log.info(f"Registering DOI for '{pub.short_url}', id {pub.id}, {pub_idx+1}/{num_total}..")
+            _log.info(f"Registering DOI for '{pub.short_url}', id {pub.id}, {pub_idx + 1}/{num_total}..")
             if options['do_it']:
                 try:
                     pub.create_doi(force_draft=options['force_draft'])

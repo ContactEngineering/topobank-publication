@@ -7,7 +7,7 @@ from django.urls import reverse
 from ..models import Publication
 
 from topobank.manager.tests.utils import SurfaceFactory, UserFactory, Topography1DFactory
-from topobank.analysis.tests.utils import TopographyAnalysisFactory, SurfaceAnalysisFactory
+from topobank.analysis.tests.utils import TopographyAnalysisFactory
 
 
 @pytest.fixture

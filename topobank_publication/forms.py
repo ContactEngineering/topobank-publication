@@ -1,9 +1,9 @@
 import logging
 import re
 
-from django.forms import forms
 from django import forms
 from django.conf import settings
+
 import bleach  # using bleach instead of django.utils.html.escape because it allows more (e.g. for markdown)
 
 from crispy_forms.helper import FormHelper
@@ -26,7 +26,8 @@ class SurfacePublishForm(forms.Form):
                                 label="I understand the implications of publishing this surface and I agree.",
                                 help_text="""Please read the implications of publishing listed above and check.""")
     copyright_hold = forms.BooleanField(widget=forms.CheckboxInput, required=True,
-                                        label="I hold copyright of this data or have been authorized by the copyright holders.",
+                                        label="I hold copyright of this data or have been authorized by the copyright "
+                                              "holders.",
                                         help_text="""Please make sure you're not publishing data """
                                                   """from others without their authorization.""")
 
@@ -55,9 +56,8 @@ class SurfacePublishForm(forms.Form):
             Field('copyright_hold'),
             FormActions(
                 Submit('save', 'Yes, publish this digital surface twin', css_class='btn-success'),
-                HTML("""
-                      <a href="{% url 'ce_ui:surface-detail' %}?surface={{ surface.pk }}" class="btn btn-default" id="cancel-btn">Cancel</a>
-                      """),
+                HTML("""<a href="{% url 'ce_ui:surface-detail' %}?surface={{ surface.pk }}" """
+                     """class="btn btn-default" id="cancel-btn">Cancel</a>"""),
             ),
             ASTERISK_HELP_HTML,
             css_class="alert alert-primary"),
@@ -97,14 +97,14 @@ class SurfacePublishForm(forms.Form):
                     raise forms.ValidationError("First name must be given for each author.")
                 if a['last_name'] == '':
                     raise forms.ValidationError("Last name must be given for each author.")
-                if a['orcid_id'] != '' and not re.match('^\d{4}-\d{4}-\d{4}-\d{3}[0-9X]$', a['orcid_id']):
+                if a['orcid_id'] != '' and not re.match(r'^\d{4}-\d{4}-\d{4}-\d{3}[0-9X]$', a['orcid_id']):
                     raise forms.ValidationError("ORCID ID must match pattern xxxx-xxxx-xxxx-xxxy, where x is a digit "
                                                 "and y a digit or the capital letter X.")
 
                 if len(a['affiliations']) > settings.PUBLICATION_MAX_NUM_AFFILIATIONS_PER_AUTHOR:
                     raise forms.ValidationError(
-                        f"Too many affiliations given, at maximum {settings.PUBLICATION_MAX_NUM_AFFILIATIONS_PER_AUTHOR}"
-                        "allowed per author.")
+                        "Too many affiliations given, at maximum "
+                        f"{settings.PUBLICATION_MAX_NUM_AFFILIATIONS_PER_AUTHOR} allowed per author.")
 
                 new_affs = []
                 for aff in a['affiliations']:
@@ -120,10 +120,10 @@ class SurfacePublishForm(forms.Form):
                         ror_id_given = False
 
                     if name_given:
-                        if ror_id_given and not re.match('^0[^ilouILOU]{6}\d{2}$', aff['ror_id']):
+                        if ror_id_given and not re.match(r'^0[^ilouILOU]{6}\d{2}$', aff['ror_id']):
                             raise forms.ValidationError(
-                                f"Incorrect format for ROR ID \'{aff['ror_id']}\', should start with 0 (zero), followed "
-                                "by 6 characters and should end with 2 digits."
+                                f"Incorrect format for ROR ID \'{aff['ror_id']}\', should start with 0 (zero), "
+                                "followed by 6 characters and should end with 2 digits."
                             )
                         new_affs.append(aff)  # only this one should be used, empty affiliations will be ignored
                     else:

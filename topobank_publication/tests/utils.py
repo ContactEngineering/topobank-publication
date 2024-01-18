@@ -13,7 +13,6 @@ from ..models import Publication
 
 
 class PublicationFactory(factory.django.DjangoModelFactory):
-
     class Meta:
         model = Publication
 

@@ -38,4 +38,4 @@ class PublicationPluginConfig(PluginConfig):
         SurfaceSerializer.__dict__['_declared_fields']['publication'] = publication_field
 
         # make sure the signals are registered now
-        import topobank_publication.signals
+        import topobank_publication.signals  # noqa: F401

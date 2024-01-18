@@ -29,6 +29,7 @@ surface_publish_permission_required = method_decorator(
     permission_required_or_403('manager.publish_surface', ('manager.Surface', 'pk', 'pk'))
 )
 
+
 class PublicationViewSet(mixins.ListModelMixin,
                          mixins.RetrieveModelMixin,
                          viewsets.GenericViewSet):
@@ -115,7 +116,7 @@ class SurfacePublishView(FormView):
         surface = self._get_surface()
         try:
             Publication.publish(surface, license, authors)
-        except NewPublicationTooFastException as exc:
+        except NewPublicationTooFastException:
             return redirect("publication:surface-publication-rate-too-high",
                             pk=surface.pk)
         except PublicationException as exc:
@@ -142,7 +143,7 @@ class SurfacePublishView(FormView):
                 'tooltip': f"Properties of surface '{surface.label}'"
             },
             {
-                'title': f"Publish surface?",
+                'title': "Publish surface?",
                 'icon': "bullhorn",
                 'href': self.request.path,
                 'active': True,
@@ -181,7 +182,7 @@ class PublicationRateTooHighView(TemplateView):
                 'tooltip': f"Properties of surface '{surface.label}'"
             },
             {
-                'title': f"Publication rate too high",
+                'title': "Publication rate too high",
                 'icon': "flash",
                 'href': self.request.path,
                 'active': True,
@@ -209,7 +210,7 @@ class PublicationErrorView(TemplateView):
                 'tooltip': f"Properties of surface '{surface.label}'"
             },
             {
-                'title': f"Publication error",
+                'title': "Publication error",
                 'icon': "flash",
                 'href': self.request.path,
                 'active': True,

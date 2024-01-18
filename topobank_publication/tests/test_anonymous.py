@@ -2,7 +2,7 @@ import pytest
 from django.shortcuts import reverse
 
 from topobank.users.tests.factories import UserFactory
-from topobank.utils import assert_in_content, assert_not_in_content
+from topobank.utils import assert_in_content
 from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory
 
 from ce_ui.utils import selection_from_session, selection_to_instances
@@ -18,9 +18,9 @@ def test_anonymous_user_can_see_published(api_client, handle_usage_statistics, e
     bob = UserFactory(name="Bob")
     surface_name = "Diamond Structure"
     surface = SurfaceFactory(creator=bob, name=surface_name)
-    topo = Topography1DFactory(surface=surface)
+    Topography1DFactory(surface=surface)
 
-    pub = Publication.publish(surface, 'cc0-1.0', example_authors)
+    Publication.publish(surface, 'cc0-1.0', example_authors)
 
     # no one is logged in now, assuming the select tab sends a search request
     response = api_client.get(reverse('ce_ui:search'))
@@ -34,7 +34,7 @@ def test_anonymous_user_can_select_published(client, handle_usage_statistics):
     bob = UserFactory(name="Bob")
     surface_name = "Diamond Structure"
     surface = SurfaceFactory(creator=bob, name=surface_name)
-    topo = Topography1DFactory(surface=surface)
+    Topography1DFactory(surface=surface)
     pub = Publication.publish(surface, 'cc0-1.0', bob.name)
     published_surface = pub.surface
     published_topo = published_surface.topography_set.first()

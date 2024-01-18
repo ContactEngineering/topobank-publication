@@ -10,7 +10,7 @@ import yaml
 
 from freezegun import freeze_time
 
-from topobank.manager.tests.utils import SurfaceFactory, UserFactory, Topography1DFactory, Topography2DFactory
+from topobank.manager.tests.utils import SurfaceFactory, UserFactory
 
 from ..models import Publication
 
@@ -22,12 +22,10 @@ def test_publication_publisher_orcid_id(example_pub):
 
 @pytest.mark.django_db
 def test_citation_html(rf, example_pub):
+    rf.get(example_pub.get_absolute_url())
 
-    request = rf.get(example_pub.get_absolute_url())
-
-    exp_html = """
-    Hermione Granger, Harry Potter. (2020). contact.engineering. <em>Diamond Structure (Version 1)</em>. <a href="{url}">{url}</a>
-    """.format(url=example_pub.get_full_url()).strip()
+    exp_html = 'Hermione Granger, Harry Potter. (2020). contact.engineering. <em>Diamond Structure (Version 1)</em>. ' \
+               '<a href="{url}">{url}</a>'.format(url=example_pub.get_full_url()).strip()
 
     result_html = example_pub.get_citation('html').strip()
 
@@ -36,8 +34,7 @@ def test_citation_html(rf, example_pub):
 
 @pytest.mark.django_db
 def test_citation_ris(rf, example_pub):
-
-    request = rf.get(example_pub.get_absolute_url())
+    rf.get(example_pub.get_absolute_url())
 
     exp_ris = """
 TY  - ELEC
@@ -61,8 +58,7 @@ ER  -
 
 @pytest.mark.django_db
 def test_citation_bibtex(rf, example_pub):
-
-    request = rf.get(example_pub.get_absolute_url())
+    rf.get(example_pub.get_absolute_url())
 
     exp_bibtex = """
         @misc{{
@@ -83,8 +79,7 @@ def test_citation_bibtex(rf, example_pub):
 
 @pytest.mark.django_db
 def test_citation_biblatex(rf, example_pub):
-
-    request = rf.get(example_pub.get_absolute_url())
+    rf.get(example_pub.get_absolute_url())
 
     exp_biblatex = """
         @online{{
@@ -202,14 +197,14 @@ def test_surface_to_dict(mocker, example_authors):
 
     expected_dict_published['is_published'] = True
     expected_dict_published['publication'] = {
-            'license': publication.get_license_display(),
-            'authors': publication.get_authors_string(),
-            'date': format(publication.datetime.date(), '%Y-%m-%d'),
-            'url': fake_url,
-            'version': 1,
-            'doi_state': 'findable',
-            'doi_url': fake_doi_url,
-        }
+        'license': publication.get_license_display(),
+        'authors': publication.get_authors_string(),
+        'date': format(publication.datetime.date(), '%Y-%m-%d'),
+        'url': fake_url,
+        'version': 1,
+        'doi_state': 'findable',
+        'doi_url': fake_doi_url,
+    }
 
     assert surface.to_dict() == expected_dict_unpublished
     assert publication.surface.to_dict() == expected_dict_published
