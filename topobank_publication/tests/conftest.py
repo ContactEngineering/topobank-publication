@@ -5,6 +5,8 @@ from freezegun import freeze_time
 
 from ..models import Publication
 
+from topobank.fixtures import example_authors, handle_usage_statistics, sync_analysis_functions, \
+    test_analysis_function  # noqa: F401
 from topobank.manager.tests.utils import one_line_scan, two_users, SurfaceFactory  # noqa: F401
 from topobank.users.tests.factories import UserFactory
 from topobank.organizations.tests.utils import OrganizationFactory
