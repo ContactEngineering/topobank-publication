@@ -67,6 +67,9 @@ class Publication(models.Model):
     def get_absolute_url(self):
         return reverse('publication:go', args=[self.short_url])
 
+    def get_api_url(self):
+        return reverse('publication:publication-api-detail', kwargs={'pk': self.pk})
+
     def get_full_url(self):
         """Return URL which should be used to permanently point to this publication.
 
