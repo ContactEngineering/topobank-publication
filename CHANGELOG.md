@@ -1,7 +1,12 @@
 # Changelog for plugin *topobank-publication*
 
-## 1.5.1 (not yet released)
+## 1.6.0 (2024-01-26)
 
+- ENH: /go links return API redirect if `application/json` is requested,
+  otherwise HTML redirect
+- ENH: API endpoint for publication now returns download link
+- BUG: Fix to /go links, which in latest version redirect to API endpoint
+  only
 - MAINT: Adding gitignore
 
 ## 1.5.0 (2024-01-20)
