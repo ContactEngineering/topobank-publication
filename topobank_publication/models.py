@@ -10,8 +10,6 @@ from django.utils.http import quote
 from django.http.request import urljoin
 from django.conf import settings
 
-from rest_framework.reverse import reverse
-
 from datacite import schema42, DataCiteRESTClient
 from datacite.errors import DataCiteError, HttpError
 

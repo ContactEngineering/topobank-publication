@@ -20,7 +20,6 @@ from .serializers import PublicationSerializer
 from .utils import NewPublicationTooFastException, PublicationException
 
 from topobank.manager.models import Surface
-from topobank.manager.views import download_surface
 from topobank.usage_stats.utils import increase_statistics_by_date_and_object
 
 _log = logging.getLogger(__name__)
