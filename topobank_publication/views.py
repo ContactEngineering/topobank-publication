@@ -66,7 +66,7 @@ def go(request, short_url):
 
     increase_statistics_by_date_and_object(Metric.objects.PUBLICATION_VIEW_COUNT, period=Period.DAY, obj=pub)
 
-    if 'application/json' in request.META['HTTP_ACCEPT']:
+    if 'HTTP_ACCEPT' in request.META and 'application/json' in request.META['HTTP_ACCEPT']:
         return redirect(pub.get_api_url())
     else:
         return redirect(f"{reverse('ce_ui:surface-detail')}?surface={pub.surface.pk}")  # <- topobank does not know this
