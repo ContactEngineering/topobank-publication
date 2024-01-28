@@ -9,4 +9,3 @@ def test_api():
     assert reverse('publication:surface-publication-error',
                    kwargs=dict(pk=123)) == '/go/html/publish/123/publication-error/'
     assert reverse('publication:go', kwargs=dict(short_url='abc123')) == '/go/abc123/'
-    assert reverse('publication:go-download', kwargs=dict(short_url='abc123')) == '/go/abc123/download/'

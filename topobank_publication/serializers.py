@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework.reverse import reverse
 
 from topobank.users.serializers import UserSerializer
 
@@ -20,11 +21,11 @@ class PublicationSerializer(serializers.HyperlinkedModelSerializer):
                   'license',
                   'authors_json',
                   'datacite_json',
-                  'container',
                   'doi_name',
                   'doi_state',
                   'citation',
-                  'has_access_to_original_surface']
+                  'has_access_to_original_surface',
+                  'download_url']
 
     url = serializers.HyperlinkedIdentityField(view_name='publication:publication-api-detail', read_only=True)
     surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail', read_only=True)
@@ -32,6 +33,7 @@ class PublicationSerializer(serializers.HyperlinkedModelSerializer):
     publisher = UserSerializer(read_only=True)
     citation = serializers.SerializerMethodField()
     has_access_to_original_surface = serializers.SerializerMethodField()
+    download_url = serializers.SerializerMethodField()
 
     def get_citation(self, obj):
         d = {}
@@ -41,3 +43,8 @@ class PublicationSerializer(serializers.HyperlinkedModelSerializer):
 
     def get_has_access_to_original_surface(self, obj):
         return self.context['request'].user.has_perm('view_surface', obj.original_surface)
+
+    def get_download_url(self, obj):
+        return reverse('manager:surface-download',
+                       kwargs={'surface_id': obj.surface.id},
+                       request=self.context['request'])
