@@ -1,9 +1,7 @@
 from io import BytesIO
 
 import pytest
-
 from django.shortcuts import reverse
-
 from topobank.manager.tests.utils import UserFactory
 
 
@@ -15,6 +13,8 @@ def test_usage_of_cached_container_on_download_of_published_surface(client, exam
     assert not example_pub.container.name
 
     surface = example_pub.surface
+
+    assert surface.is_published
 
     # we don't need the correct container here, so we just return some fake data
     write_container_mock = mocker.patch('topobank.manager.views.write_surface_container', autospec=True)
@@ -28,7 +28,7 @@ def test_usage_of_cached_container_on_download_of_published_surface(client, exam
     # first download
     #
     response = download_published()
-    assert response.status_code == 200
+    assert response.status_code == 200, response.content
 
     # now container has been set because write_container was called
     assert write_container_mock.called
@@ -39,7 +39,7 @@ def test_usage_of_cached_container_on_download_of_published_surface(client, exam
     # second download
     #
     response = download_published()
-    assert response.status_code == 200
+    assert response.status_code == 200, response.content
 
     # no extra call of write_container because it is a published surface
     assert write_container_mock.call_count == 1

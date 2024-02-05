@@ -1,10 +1,9 @@
 import pytest
 from django.shortcuts import reverse
-
-from topobank.utils import assert_in_content
-
 from topobank.analysis.tests.utils import TopographyAnalysisFactory
-from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory, UserFactory
+from topobank.manager.tests.utils import (SurfaceFactory, Topography1DFactory,
+                                          UserFactory)
+from topobank.utils import assert_in_content
 
 from ..models import Publication
 
@@ -32,7 +31,7 @@ def test_instances(test_analysis_function):
 
 
 @pytest.mark.django_db
-def test_welcome_page_statistics(client, test_instances, handle_usage_statistics):
+def test_welcome_page_statistics(client, test_instances, orcid_socialapp, handle_usage_statistics):
     (user_1, user_2), (surface_1, surface_2), (topography_1,) = test_instances
     surface_2.share(user_2)
 
