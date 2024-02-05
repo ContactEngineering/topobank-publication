@@ -68,6 +68,6 @@ def test_go_download(api_client, example_pub, handle_usage_statistics):
 
 
 @pytest.mark.django_db
-def test_redirection_invalid_publication_link(client, handle_usage_statistics):
+def test_redirection_invalid_publication_link(client, orcid_socialapp, handle_usage_statistics):
     response = client.get(reverse('publication:go', kwargs=dict(short_url='THISISNONSENSE')))
     assert response.status_code == 404
