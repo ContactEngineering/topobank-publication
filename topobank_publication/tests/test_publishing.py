@@ -1,19 +1,20 @@
-import pytest
 import datetime
 import zipfile
 
 import django.db.models.deletion
+import pytest
 from django.conf import settings
 from django.shortcuts import reverse
 from guardian.shortcuts import get_perms
-
-from topobank.manager.tests.utils import SurfaceFactory, UserFactory, Topography2DFactory, TagModelFactory
-from topobank.utils import assert_in_content, assert_not_in_content
 from topobank.manager.models import Surface
+from topobank.manager.tests.utils import (SurfaceFactory, TagFactory,
+                                          Topography2DFactory, UserFactory)
+from topobank.utils import assert_in_content, assert_not_in_content
 
 from ..forms import SurfacePublishForm
 from ..models import Publication
-from ..utils import (NewPublicationTooFastException, PublicationsDisabledException, PublicationException,
+from ..utils import (NewPublicationTooFastException, PublicationException,
+                     PublicationsDisabledException,
                      set_publication_permissions)
 
 # Example user
@@ -148,8 +149,8 @@ def test_permissions_for_published():
 
 @pytest.mark.django_db
 def test_surface_deepcopy():
-    tag1 = TagModelFactory()
-    tag2 = TagModelFactory()
+    tag1 = TagFactory()
+    tag2 = TagFactory()
 
     datea = datetime.date(2020, 7, 1)
     dateb = datetime.date(2020, 7, 2)

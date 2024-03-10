@@ -2,20 +2,19 @@
 Tests for writing surface containers
 """
 
-import zipfile
-import yaml
-import pytest
-import tempfile
 import os
+import tempfile
+import zipfile
 
-from django.conf import settings
-
+import pytest
 import topobank
-
+import yaml
+from django.conf import settings
 from topobank.manager.containers import write_surface_container
 from topobank.manager.models import Topography
-from topobank.manager.tests.utils import SurfaceFactory, Topography2DFactory, Topography1DFactory, TagModelFactory, \
-    FIXTURE_DIR
+from topobank.manager.tests.utils import (FIXTURE_DIR, SurfaceFactory,
+                                          TagFactory, Topography1DFactory,
+                                          Topography2DFactory)
 from topobank.users.tests.factories import UserFactory
 
 from ..models import Publication
@@ -35,8 +34,8 @@ def test_surface_container(example_authors):
     fill_undefined_data_mode = Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
 
     user = UserFactory()
-    tag1 = TagModelFactory(name='apple')
-    tag2 = TagModelFactory(name='banana')
+    tag1 = TagFactory(name='apple')
+    tag2 = TagFactory(name='banana')
     surface1 = SurfaceFactory(creator=user, tags=[tag1])
     surface2 = SurfaceFactory(creator=user)
     surface3 = SurfaceFactory(creator=user, description='Nice results')
