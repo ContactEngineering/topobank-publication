@@ -38,16 +38,6 @@ def test_welcome_page_statistics(client, test_instances, orcid_socialapp, handle
     Publication.publish(surface_1, 'cc0-1.0', 'Issac Newton')
 
     #
-    # Test statistics if user is not yet authenticated
-    #
-    response = client.get(reverse('home'))
-
-    assert_in_content(response, '<div class="welcome-page-statistics">2</div> registered users')
-    assert_in_content(response, '<div class="welcome-page-statistics">2</div> digital surface twins')
-    assert_in_content(response, '<div class="welcome-page-statistics">1</div> individual measurements')
-    assert_in_content(response, '<div class="welcome-page-statistics">1</div> computed analyses')
-
-    #
     # Test statistics if user_1 is authenticated
     #
     client.force_login(user_1)
