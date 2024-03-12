@@ -1,5 +1,9 @@
 # Changelog for plugin *topobank-publication*
 
+## 1.6.2 (2024-03-12)
+
+- MAINT: Compatibility with topobank 1.7.0
+
 ## 1.6.1 (2024-02-05)
 
 - MAINT: Fixed typo in publishing screen
