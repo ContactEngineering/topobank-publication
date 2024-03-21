@@ -1,16 +1,7 @@
-import importlib.metadata
-import logging
-
 from rest_framework import serializers
-
 from topobank.plugins import PluginConfig
 
-try:
-    __version__ = importlib.metadata.version('topobank-publication')
-except importlib.metadata.PackageNotFoundError:
-    __version__ = '0.0.0'
-
-_log = logging.Logger(__file__)
+from .version import __version__
 
 
 class PublicationPluginConfig(PluginConfig):
