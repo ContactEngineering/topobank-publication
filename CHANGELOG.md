@@ -1,5 +1,9 @@
 # Changelog for plugin *topobank-publication*
 
+## 1.6.4 (2024-03-22)
+ 
+- BUG: Fixed version discovery
+
 ## 1.6.3 (2024-03-21)
 
 - BUILD: Changed build system to flit
