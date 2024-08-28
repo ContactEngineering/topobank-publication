@@ -5,33 +5,23 @@ from django.contrib import messages
 from django.http import Http404
 from django.shortcuts import redirect
 from django.urls import reverse
-from django.utils.decorators import method_decorator
-from django.views.generic import TemplateView, FormView
-
-from guardian.decorators import permission_required_or_403
-
+from django.views.generic import FormView, TemplateView
 from rest_framework import mixins, viewsets
-
+from topobank.manager.models import Surface
+from topobank.usage_stats.utils import increase_statistics_by_date_and_object
 from trackstats.models import Metric, Period
 
 from .forms import SurfacePublishForm
-from .models import Publication, MAX_LEN_AUTHORS_FIELD
+from .models import MAX_LEN_AUTHORS_FIELD, Publication
 from .serializers import PublicationSerializer
 from .utils import NewPublicationTooFastException, PublicationException
 
-from topobank.manager.models import Surface
-from topobank.usage_stats.utils import increase_statistics_by_date_and_object
-
 _log = logging.getLogger(__name__)
 
-surface_publish_permission_required = method_decorator(
-    permission_required_or_403('manager.publish_surface', ('manager.Surface', 'pk', 'pk'))
-)
 
-
-class PublicationViewSet(mixins.ListModelMixin,
-                         mixins.RetrieveModelMixin,
-                         viewsets.GenericViewSet):
+class PublicationViewSet(
+    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
+):
     serializer_class = PublicationSerializer
 
     # FIXME! This view needs pagination
@@ -40,19 +30,21 @@ class PublicationViewSet(mixins.ListModelMixin,
         q = Publication.objects.all()
         order_by_version = False
         try:
-            original_surface = int(self.request.query_params.get('original_surface', default=None))
+            original_surface = int(
+                self.request.query_params.get("original_surface", default=None)
+            )
             q = q.filter(original_surface=original_surface)
             order_by_version = True
         except TypeError:
             pass
         try:
-            surface = int(self.request.query_params.get('surface', default=None))
+            surface = int(self.request.query_params.get("surface", default=None))
             q = q.filter(surface=surface)
             order_by_version = True
         except TypeError:
             pass
         if order_by_version:
-            q = q.order_by('-version')
+            q = q.order_by("-version")
         return q
 
 
@@ -63,61 +55,62 @@ def go(request, short_url):
     except Publication.DoesNotExist:
         raise Http404()
 
-    increase_statistics_by_date_and_object(Metric.objects.PUBLICATION_VIEW_COUNT, period=Period.DAY, obj=pub)
+    increase_statistics_by_date_and_object(
+        Metric.objects.PUBLICATION_VIEW_COUNT, period=Period.DAY, obj=pub
+    )
 
-    if 'HTTP_ACCEPT' in request.META and 'application/json' in request.META['HTTP_ACCEPT']:
+    if (
+        "HTTP_ACCEPT" in request.META
+        and "application/json" in request.META["HTTP_ACCEPT"]
+    ):
         return redirect(pub.get_api_url())
     else:
-        return redirect(f"{reverse('ce_ui:surface-detail')}?surface={pub.surface.pk}")  # <- topobank does not know this
+        return redirect(
+            f"{reverse('ce_ui:surface-detail')}?surface={pub.surface.pk}"
+        )  # <- topobank does not know this
 
 
 class SurfacePublishView(FormView):
     template_name = "surface_publish.html"
     form_class = SurfacePublishForm
 
-    @surface_publish_permission_required
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, *kwargs)
-
     def _get_surface(self):
-        surface_pk = self.kwargs['pk']
+        surface_pk = self.kwargs["pk"]
         return Surface.objects.get(pk=surface_pk)
+
+    def dispatch(self, request, *args, **kwargs):
+        surface = self._get_surface()
+        if not surface.has_permission(request.user, "full"):
+            raise PermissionError(
+                f"User {request.user} does not have permission to "
+                "publish this dataset."
+            )
+        return super().dispatch(request, *args, *kwargs)
 
     def get_initial(self):
         initial = super().get_initial()
-        initial['author_0'] = ''
-        initial['num_author_fields'] = 1
+        initial["author_0"] = ""
+        initial["num_author_fields"] = 1
         return initial
-
-    # def get_form_kwargs(self):
-    #     kwargs = super().get_form_kwargs()
-    #     if self.request.method == 'POST':
-    #         # The field 'num_author_fields' may have been increased by
-    #         # Javascript (Vuejs) on the client in order to add new authors.
-    #         # This should be sent to the form in order to know
-    #         # how many fields the form should have and how many author names
-    #         # should be combined. So this is passed here:
-    #         kwargs['num_author_fields'] = int(self.request.POST.get('num_author_fields'))
-    #     return kwargs
 
     def get_success_url(self):
         return f"{reverse('ce_ui:surface-detail')}?surface={self.kwargs['pk']}"
 
     def form_valid(self, form):
-        license = form.cleaned_data.get('license')
-        authors = form.cleaned_data.get('authors_json')
+        license = form.cleaned_data.get("license")
+        authors = form.cleaned_data.get("authors_json")
         surface = self._get_surface()
         try:
             Publication.publish(surface, license, authors)
         except NewPublicationTooFastException:
-            return redirect("publication:surface-publication-rate-too-high",
-                            pk=surface.pk)
+            return redirect(
+                "publication:surface-publication-rate-too-high", pk=surface.pk
+            )
         except PublicationException as exc:
             msg = f"Publication failed, reason: {exc}"
             _log.error(msg)
             messages.error(self.request, msg)
-            return redirect("publication:surface-publication-error",
-                            pk=surface.pk)
+            return redirect("publication:surface-publication-error", pk=surface.pk)
 
         return super().form_valid(form)
 
@@ -126,32 +119,30 @@ class SurfacePublishView(FormView):
 
         surface = self._get_surface()
 
-        context['extra_tabs'] = [
+        context["extra_tabs"] = [
             {
-                'title': f"{surface.label}",
-                'icon': "gem",
-                'icon_style_prefix': 'far',
-                'href': f"{reverse('ce_ui:surface-detail')}?surface={surface.pk}",
-                'active': False,
-                'tooltip': f"Properties of surface '{surface.label}'"
+                "title": f"{surface.label}",
+                "icon": "gem",
+                "icon_style_prefix": "far",
+                "href": f"{reverse('ce_ui:surface-detail')}?surface={surface.pk}",
+                "active": False,
+                "tooltip": f"Properties of surface '{surface.label}'",
             },
             {
-                'title': "Publish surface?",
-                'icon': "bullhorn",
-                'href': self.request.path,
-                'active': True,
-                'tooltip': f"Publishing surface '{surface.label}'"
-            }
+                "title": "Publish surface?",
+                "icon": "bullhorn",
+                "href": self.request.path,
+                "active": True,
+                "tooltip": f"Publishing surface '{surface.label}'",
+            },
         ]
-        context['surface'] = surface
-        context['max_len_authors_field'] = MAX_LEN_AUTHORS_FIELD
+        context["surface"] = surface
+        context["max_len_authors_field"] = MAX_LEN_AUTHORS_FIELD
         user = self.request.user
-        context['user_dict'] = dict(
-            first_name=user.first_name,
-            last_name=user.last_name,
-            orcid_id=user.orcid_id
+        context["user_dict"] = dict(
+            first_name=user.first_name, last_name=user.last_name, orcid_id=user.orcid_id
         )
-        context['configured_for_doi_generation'] = settings.PUBLICATION_DOI_MANDATORY
+        context["configured_for_doi_generation"] = settings.PUBLICATION_DOI_MANDATORY
         return context
 
 
@@ -160,26 +151,26 @@ class PublicationRateTooHighView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['min_seconds'] = settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS
+        context["min_seconds"] = settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS
 
-        surface_pk = self.kwargs['pk']
+        surface_pk = self.kwargs["pk"]
         surface = Surface.objects.get(pk=surface_pk)
 
-        context['extra_tabs'] = [
+        context["extra_tabs"] = [
             {
-                'title': f"{surface.label}",
-                'icon': "gem",
-                'icon_style_prefix': 'far',
-                'href': f"{reverse('ce_ui:surface-detail')}?surface={surface.pk}",
-                'active': False,
-                'tooltip': f"Properties of surface '{surface.label}'"
+                "title": f"{surface.label}",
+                "icon": "gem",
+                "icon_style_prefix": "far",
+                "href": f"{reverse('ce_ui:surface-detail')}?surface={surface.pk}",
+                "active": False,
+                "tooltip": f"Properties of surface '{surface.label}'",
             },
             {
-                'title': "Publication rate too high",
-                'icon': "flash",
-                'href': self.request.path,
-                'active': True,
-            }
+                "title": "Publication rate too high",
+                "icon": "flash",
+                "href": self.request.path,
+                "active": True,
+            },
         ]
         return context
 
@@ -190,23 +181,23 @@ class PublicationErrorView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        surface_pk = self.kwargs['pk']
+        surface_pk = self.kwargs["pk"]
         surface = Surface.objects.get(pk=surface_pk)
 
-        context['extra_tabs'] = [
+        context["extra_tabs"] = [
             {
-                'title': f"{surface.label}",
-                'icon': "gem",
-                'icon_style_prefix': 'far',
-                'href': f"{reverse('ce_ui:surface-detail')}?surface={surface.pk}",
-                'active': False,
-                'tooltip': f"Properties of surface '{surface.label}'"
+                "title": f"{surface.label}",
+                "icon": "gem",
+                "icon_style_prefix": "far",
+                "href": f"{reverse('ce_ui:surface-detail')}?surface={surface.pk}",
+                "active": False,
+                "tooltip": f"Properties of surface '{surface.label}'",
             },
             {
-                'title': "Publication error",
-                'icon': "flash",
-                'href': self.request.path,
-                'active': True,
-            }
+                "title": "Publication error",
+                "icon": "flash",
+                "href": self.request.path,
+                "active": True,
+            },
         ]
         return context

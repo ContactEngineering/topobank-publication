@@ -5,17 +5,17 @@ import django.db.models.deletion
 import pytest
 from django.conf import settings
 from django.shortcuts import reverse
-from guardian.shortcuts import get_perms
 from topobank.manager.models import Surface
-from topobank.manager.tests.utils import (SurfaceFactory, TagFactory,
-                                          Topography2DFactory, UserFactory)
-from topobank.utils import assert_in_content, assert_not_in_content
+from topobank.testing.factories import (SurfaceFactory, TagFactory,
+                                        Topography2DFactory, UserFactory)
+from topobank.testing.utils import assert_in_content, assert_not_in_content
 
-from ..forms import SurfacePublishForm
-from ..models import Publication
-from ..utils import (NewPublicationTooFastException, PublicationException,
-                     PublicationsDisabledException,
-                     set_publication_permissions)
+from topobank_publication.forms import SurfacePublishForm
+from topobank_publication.models import Publication
+from topobank_publication.utils import (NewPublicationTooFastException,
+                                        PublicationException,
+                                        PublicationsDisabledException,
+                                        set_publication_permissions)
 
 # Example user
 bob = dict(first_name='Bob', last_name='Doe', orcid_id='123',
@@ -103,24 +103,19 @@ def test_set_publication_permissions():
 
     # before publishing, user1 is allowed everything,
     # user2 nothing
-    assert set(get_perms(user1, surface)) == set(['view_surface', 'delete_surface', 'change_surface',
-                                                  'share_surface', 'publish_surface'])
-    assert get_perms(user2, surface) == []
+    assert surface.has_permission(user1, "full")
+    assert not surface.has_permission(user2, "view")
 
     set_publication_permissions(surface)
 
     # now, both users are only allowed viewing
-    user1_perms = get_perms(user1, surface)
-    user2_perms = get_perms(user2, surface)
+    user1_perms = surface.get_permission(user1)
+    user2_perms = surface.get_permission(user2)
 
-    assert user1_perms == ['view_surface']
-    assert user2_perms == ['view_surface']
+    assert user1_perms == "view"
+    assert user2_perms == "view"
 
-    assert 'change_surface' not in user1_perms  # no longer allowed to change the surface
-
-    # For some reason, when running topobank with runserver and not in Docker,
-    # the removal of the permissions does not work - not sure why. This happens
-    # somehow while implementing issues for release 0.15
+    assert not surface.has_permission(user1, "edit")
 
 
 @pytest.mark.django_db
@@ -131,20 +126,18 @@ def test_permissions_for_published():
 
     # before publishing, user1 is allowed everything,
     # user2 nothing
-    assert set(get_perms(user1, surface)) == set(['view_surface', 'delete_surface', 'change_surface',
-                                                  'share_surface', 'publish_surface'])
-    assert get_perms(user2, surface) == []
+    assert surface.has_permission(user1, "full")
+    assert not surface.has_permission(user2, "view")
 
     # for the published surface, both users are only allowed viewing
     publication = Publication.publish(surface, 'cc0-1.0', 'Alice')
 
-    assert get_perms(user1, publication.surface) == ['view_surface']
-    assert get_perms(user2, publication.surface) == ['view_surface']
+    assert publication.surface.get_permission(user1) == 'view'
+    assert publication.surface.get_permission(user2) == 'view'
 
     # the permissions for the original surface has not been changed
-    assert set(get_perms(user1, surface)) == set(['view_surface', 'delete_surface', 'change_surface',
-                                                  'share_surface', 'publish_surface'])
-    assert get_perms(user2, surface) == []
+    assert surface.has_permission(user1, "full")
+    assert not surface.has_permission(user2, "view")
 
 
 @pytest.mark.django_db
@@ -206,7 +199,8 @@ def test_surface_deepcopy():
 
 @pytest.mark.parametrize("license", settings.CC_LICENSE_INFOS.keys())
 @pytest.mark.django_db
-def test_license_in_surface_download(client, license, handle_usage_statistics, example_authors):
+def test_license_in_surface_download(client, license, handle_usage_statistics,
+                                     example_authors):
     import io
     user1 = UserFactory()
     user2 = UserFactory()
@@ -215,11 +209,13 @@ def test_license_in_surface_download(client, license, handle_usage_statistics, e
     publication = Publication.publish(surface, license, example_authors)
     client.force_login(user2)
 
-    response = client.get(reverse('manager:surface-download', kwargs=dict(surface_id=publication.surface.id)))
+    response = client.get(reverse('manager:surface-download',
+                                  kwargs=dict(surface_id=publication.surface.id)))
 
     assert response.status_code == 200
     # for published surfaces, the downloaded file should have the name "ce-<short_url>.zip"
-    assert response['Content-Disposition'] == f'attachment; filename="ce-{publication.short_url}.zip"'
+    assert response[
+               'Content-Disposition'] == f'attachment; filename="ce-{publication.short_url}.zip"'
 
     downloaded_file = io.BytesIO(response.content)
     with zipfile.ZipFile(downloaded_file) as z:
@@ -239,7 +235,9 @@ def test_license_in_surface_download(client, license, handle_usage_statistics, e
 
 
 @pytest.mark.django_db
-def test_dont_show_published_surfaces_when_shared_filter_used(client, handle_usage_statistics, example_authors):
+def test_dont_show_published_surfaces_when_shared_filter_used(client,
+                                                              handle_usage_statistics,
+                                                              example_authors):
     alice = UserFactory()
     bob = UserFactory()
     surface1 = SurfaceFactory(creator=alice, name="Shared Surface")
@@ -249,11 +247,13 @@ def test_dont_show_published_surfaces_when_shared_filter_used(client, handle_usa
 
     client.force_login(bob)
 
-    response = client.get(reverse('ce_ui:search') + '?sharing_status=shared_ingress')  # means "shared with you"
+    response = client.get(reverse(
+        'ce_ui:search') + '?sharing_status=shared_ingress')  # means "shared with you"
     assert_in_content(response, "Shared Surface")
     assert_not_in_content(response, "Published Surface")
 
-    response = client.get(reverse('ce_ui:search') + '?sharing_status=published_ingress')  # means "published by others"
+    response = client.get(reverse(
+        'ce_ui:search') + '?sharing_status=published_ingress')  # means "published by others"
     assert_not_in_content(response, "Shared Surface")
     assert_in_content(response, "Published Surface")
 
@@ -289,9 +289,12 @@ def test_publishing_no_authors_given():
 def test_publishing_unique_author_names():
     form_data = {
         'authors_json': [
-            {'first_name': 'Alice', 'last_name': 'Wonderland', 'orcid_id': '', 'affiliations': []},
-            {'first_name': 'Bob', 'last_name': 'Wonderland', 'orcid_id': '', 'affiliations': []},
-            {'first_name': 'Alice', 'last_name': 'Wonderland', 'orcid_id': '', 'affiliations': []},
+            {'first_name': 'Alice', 'last_name': 'Wonderland', 'orcid_id': '',
+             'affiliations': []},
+            {'first_name': 'Bob', 'last_name': 'Wonderland', 'orcid_id': '',
+             'affiliations': []},
+            {'first_name': 'Alice', 'last_name': 'Wonderland', 'orcid_id': '',
+             'affiliations': []},
         ],
         'license': 'cc0-1.0',
         'agreed': True,
@@ -299,13 +302,15 @@ def test_publishing_unique_author_names():
     }
     form = SurfacePublishForm(data=form_data)
     assert not form.is_valid()
-    assert form.errors['__all__'] == ["Duplicate author given! Make sure authors differ in at least one field."]
+    assert form.errors['__all__'] == [
+        "Duplicate author given! Make sure authors differ in at least one field."]
 
 
 def test_publishing_invalid_orcid():
     form_data = {
         'authors_json': [
-            {'first_name': 'Alice', 'last_name': 'Wonderland', 'orcid_id': '1234-1234-1234-abcd', 'affiliations': []},
+            {'first_name': 'Alice', 'last_name': 'Wonderland',
+             'orcid_id': '1234-1234-1234-abcd', 'affiliations': []},
         ],
         'license': 'cc0-1.0',
         'agreed': True,
@@ -313,16 +318,19 @@ def test_publishing_invalid_orcid():
     }
     form = SurfacePublishForm(data=form_data)
     assert not form.is_valid()
-    assert form.errors['__all__'] == ["ORCID ID must match pattern xxxx-xxxx-xxxx-xxxy, where x is a digit "
-                                      "and y a digit or the capital letter X."]
+    assert form.errors['__all__'] == [
+        "ORCID ID must match pattern xxxx-xxxx-xxxx-xxxy, where x is a digit "
+        "and y a digit or the capital letter X."]
 
 
 def test_publishing_invalid_ror_id():
     form_data = {
         'authors_json': [
-            {'first_name': 'Alice', 'last_name': 'Wonderland', 'orcid_id': '', 'affiliations': [
-                {'name': 'Wonderland University', 'ror_id': '0123456789downtherabbithole'}
-            ]},
+            {'first_name': 'Alice', 'last_name': 'Wonderland', 'orcid_id': '',
+             'affiliations': [
+                 {'name': 'Wonderland University',
+                  'ror_id': '0123456789downtherabbithole'}
+             ]},
         ],
         'license': 'cc0-1.0',
         'agreed': True,
@@ -330,9 +338,10 @@ def test_publishing_invalid_ror_id():
     }
     form = SurfacePublishForm(data=form_data)
     assert not form.is_valid()
-    assert form.errors['__all__'] == ["Incorrect format for ROR ID '0123456789downtherabbithole', "
-                                      "should start with 0 (zero), followed by 6 characters and "
-                                      "should end with 2 digits."]
+    assert form.errors['__all__'] == [
+        "Incorrect format for ROR ID '0123456789downtherabbithole', "
+        "should start with 0 (zero), followed by 6 characters and "
+        "should end with 2 digits."]
 
 
 def test_publishing_wrong_license(example_authors):
@@ -345,7 +354,8 @@ def test_publishing_wrong_license(example_authors):
     form = SurfacePublishForm(data=form_data)
     assert not form.is_valid()
 
-    assert form.errors['license'] == ['Select a valid choice. fantasy is not one of the available choices.']
+    assert form.errors['license'] == [
+        'Select a valid choice. fantasy is not one of the available choices.']
 
 
 @pytest.mark.django_db

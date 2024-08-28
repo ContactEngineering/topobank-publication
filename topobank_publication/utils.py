@@ -1,9 +1,6 @@
 import logging
 
-from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms, get_anonymous_user
-
-from topobank.manager.utils import api_to_guardian
-from topobank.users.utils import get_default_group
+from topobank.users.anonymous import get_anonymous_user
 
 _log = logging.getLogger(__name__)
 
@@ -61,19 +58,9 @@ def set_publication_permissions(surface):
         raise PublicationException("Superusers cannot publish!")
 
     # Remove edit, share and delete permission from everyone
-    users = get_users_with_perms(surface)
-    for u in users:
-        for perm in api_to_guardian('full'):
-            remove_perm(perm, u, surface)
-
-    # Add read permission for everyone
-    assign_perm('view_surface', get_default_group(), surface)
+    users_with_access = [perm.user for perm in surface.permissions.user_permissions]
+    for user in users_with_access:
+        surface.revoke_permission(user)
 
     # Add read permission for anonymous user
-    assign_perm('view_surface', get_anonymous_user(), surface)
-
-    from guardian.shortcuts import get_perms
-    # TODO for unknown reasons, when not in Docker, the published surfaces are still changeable
-    # Here "remove_perm" does not work. We do not allow this. See GH 704.
-    if 'change_surface' in get_perms(surface.creator, surface):
-        raise PublicationException("Withdrawing permissions for publication did not work!")
+    surface.grant_permission(get_anonymous_user(), 'view')
