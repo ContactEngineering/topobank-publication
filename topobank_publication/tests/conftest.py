@@ -1,18 +1,18 @@
 import datetime
 
 import pytest
-from ce_ui.tests.fixtures import orcid_socialapp  # noqa: F401
+from allauth.socialaccount.models import SocialApp
 from freezegun import freeze_time
-from topobank.fixtures import example_authors  # noqa: F401
-from topobank.fixtures import handle_usage_statistics  # noqa: F401
-from topobank.fixtures import sync_analysis_functions  # noqa: F401
-from topobank.fixtures import test_analysis_function  # noqa: F401
-from topobank.manager.tests.utils import SurfaceFactory  # noqa: F401
-from topobank.manager.tests.utils import one_line_scan, two_users  # noqa: F401
-from topobank.organizations.tests.utils import OrganizationFactory
-from topobank.users.tests.factories import UserFactory
+from topobank.testing.factories import (OrganizationFactory, SurfaceFactory,
+                                        UserFactory)
+from topobank.testing.fixtures import example_authors  # noqa: F401
+from topobank.testing.fixtures import handle_usage_statistics  # noqa: F401
+from topobank.testing.fixtures import one_line_scan  # noqa: F401
+from topobank.testing.fixtures import sync_analysis_functions  # noqa: F401
+from topobank.testing.fixtures import test_analysis_function  # noqa: F401
+from topobank.testing.fixtures import two_users  # noqa: F401
 
-from ..models import Publication
+from topobank_publication.models import Publication
 
 
 @pytest.mark.django_db
@@ -27,10 +27,10 @@ def example_pub(example_authors):  # noqa: F811
     name = "Diamond Structure"
 
     surface = SurfaceFactory(name=name, creator=user, description=description)
-    surface.tags = ['diamond']
+    surface.tags = ["diamond"]
 
     with freeze_time(publication_date):
-        pub = Publication.publish(surface, 'cc0-1.0', example_authors)
+        pub = Publication.publish(surface, "cc0-1.0", example_authors)
 
     return pub
 
@@ -43,3 +43,10 @@ def user_with_plugin():
     user = UserFactory()
     user.groups.add(org.group)
     return user
+
+
+@pytest.mark.django_db
+@pytest.fixture
+def orcid_socialapp():
+    social_app = SocialApp.objects.create(provider="orcid", name="ORCID")
+    social_app.sites.set([1])

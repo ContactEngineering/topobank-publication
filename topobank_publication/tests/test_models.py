@@ -1,18 +1,16 @@
 """Tests related to publication models."""
 
+import datetime
 import os
 import tempfile
+import zipfile
 
 import pytest
-import datetime
-import zipfile
 import yaml
-
 from freezegun import freeze_time
+from topobank.testing.factories import SurfaceFactory, UserFactory
 
-from topobank.manager.tests.utils import SurfaceFactory, UserFactory
-
-from ..models import Publication
+from topobank_publication.models import Publication
 
 
 @pytest.mark.django_db

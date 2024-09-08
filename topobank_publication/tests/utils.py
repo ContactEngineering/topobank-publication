@@ -2,12 +2,11 @@
 Helpers for testing the publication app.
 """
 
-import factory
 import datetime
-import short_url
 
-from topobank.manager.tests.utils import SurfaceFactory
-from topobank.users.tests.factories import UserFactory
+import factory
+import short_url
+from topobank.testing.factories import SurfaceFactory, UserFactory
 
 from ..models import Publication
 

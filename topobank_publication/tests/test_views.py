@@ -1,15 +1,13 @@
 """Tests related to views."""
 
-import yaml
 import zipfile
 from io import BytesIO
 
 import pytest
-
+import yaml
 from django.shortcuts import reverse
-
-from topobank.manager.tests.utils import UserFactory
-from topobank.utils import assert_in_content
+from topobank.testing.factories import UserFactory
+from topobank.testing.utils import assert_in_content
 
 
 @pytest.mark.django_db

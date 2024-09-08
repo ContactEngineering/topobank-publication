@@ -2,7 +2,7 @@ from io import BytesIO
 
 import pytest
 from django.shortcuts import reverse
-from topobank.manager.tests.utils import UserFactory
+from topobank.testing.factories import UserFactory
 
 
 @pytest.mark.django_db

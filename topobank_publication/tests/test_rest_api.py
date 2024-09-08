@@ -1,7 +1,5 @@
 import pytest
-
 from django.shortcuts import reverse
-
 from topobank.manager.models import Surface, Topography
 
 from ..models import Publication
@@ -28,7 +26,7 @@ def test_delete_surface_routes(api_client, two_users, handle_usage_statistics):
 
 @pytest.mark.django_db
 def test_patch_topography_routes(api_client, two_users, handle_usage_statistics):
-    user1, user2 = two_users
+    (user1, user2), (surface1, surface2, surface3) = two_users
     topo1, topo2, topo3 = Topography.objects.all()
     assert topo1.creator == user1
 

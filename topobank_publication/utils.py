@@ -7,16 +7,19 @@ _log = logging.getLogger(__name__)
 
 class PublicationException(Exception):
     """A general exception related to publications."""
+
     pass
 
 
 class PublicationsDisabledException(PublicationException):
     """Publications are not allowed due to settings."""
+
     pass
 
 
 class AlreadyPublishedException(PublicationException):
     """A surface has already been published."""
+
     pass
 
 
@@ -58,9 +61,11 @@ def set_publication_permissions(surface):
         raise PublicationException("Superusers cannot publish!")
 
     # Remove edit, share and delete permission from everyone
-    users_with_access = [perm.user for perm in surface.permissions.user_permissions]
+    users_with_access = [
+        perm.user for perm in surface.permissions.user_permissions.all()
+    ]
     for user in users_with_access:
         surface.revoke_permission(user)
 
     # Add read permission for anonymous user
-    surface.grant_permission(get_anonymous_user(), 'view')
+    surface.grant_permission(get_anonymous_user(), "view")

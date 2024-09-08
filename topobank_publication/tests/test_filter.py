@@ -1,9 +1,8 @@
 import pytest
 from django.urls import reverse
+from topobank.testing.factories import SurfaceFactory, UserFactory
 
 from ..models import Publication
-
-from topobank.manager.tests.utils import SurfaceFactory, UserFactory
 
 
 @pytest.mark.django_db
