@@ -3,21 +3,20 @@ import math
 import os.path
 from io import BytesIO
 
+from datacite import DataCiteRESTClient, schema42
+from datacite.errors import DataCiteError, HttpError
+from django.conf import settings
 from django.db import models
+from django.http.request import urljoin
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import quote
-from django.http.request import urljoin
-from django.conf import settings
-
-from datacite import schema42, DataCiteRESTClient
-from datacite.errors import DataCiteError, HttpError
-
-from topobank.users.models import User
 from topobank.manager.models import Surface
+from topobank.users.models import User
 
-from .utils import (AlreadyPublishedException, DOICreationException, NewPublicationTooFastException,
-                    PublicationsDisabledException, PublicationException, UnknownCitationFormat,
+from .utils import (AlreadyPublishedException, DOICreationException,
+                    NewPublicationTooFastException, PublicationException,
+                    PublicationsDisabledException, UnknownCitationFormat,
                     set_publication_permissions)
 
 _log = logging.getLogger(__name__)
@@ -40,29 +39,35 @@ class Publication(models.Model):
     DOI_STATE_REGISTERED = 'registered'
     DOI_STATE_FINDABLE = 'findable'
     DOI_STATE_CHOICES = [(k, settings.PUBLICATION_DOI_STATE_INFOS[k]['description'])
-                         for k in [DOI_STATE_DRAFT, DOI_STATE_REGISTERED, DOI_STATE_FINDABLE]]
+                         for k in
+                         [DOI_STATE_DRAFT, DOI_STATE_REGISTERED, DOI_STATE_FINDABLE]]
 
     short_url = models.CharField(max_length=10, unique=True, null=True)
-    surface = models.OneToOneField(Surface, on_delete=models.PROTECT, related_name='publication')
+    surface = models.OneToOneField(Surface, on_delete=models.PROTECT,
+                                   related_name='publication')
     original_surface = models.ForeignKey(Surface, on_delete=models.PROTECT,
                                          # original surface can no longer be deleted once published
                                          null=True, related_name='derived_publications')
     publisher = models.ForeignKey(User, on_delete=models.PROTECT)
-    publisher_orcid_id = models.CharField(max_length=19, default='')  # 16 digits including 3 dashes
+    publisher_orcid_id = models.CharField(max_length=19,
+                                          default='')  # 16 digits including 3 dashes
     version = models.PositiveIntegerField(default=1)
     datetime = models.DateTimeField(auto_now_add=True)
-    license = models.CharField(max_length=12, choices=LICENSE_CHOICES, blank=False, default='')
+    license = models.CharField(max_length=12, choices=LICENSE_CHOICES, blank=False,
+                               default='')
     authors_json = models.JSONField(default=list)
     datacite_json = models.JSONField(default=dict)
     container = models.FileField(max_length=50, default='')
-    doi_name = models.CharField(max_length=50, default='')  # part of DOI which starts with 10.
+    doi_name = models.CharField(max_length=50,
+                                default='')  # part of DOI which starts with 10.
     # if empty, the DOI has not been generated yet
     doi_state = models.CharField(max_length=10, choices=DOI_STATE_CHOICES, default='')
 
     def get_authors_string(self):
         """Return author names as comma-separated string in correct order.
         """
-        return ", ".join([f"{a['first_name']} {a['last_name']}" for a in self.authors_json])
+        return ", ".join(
+            [f"{a['first_name']} {a['last_name']}" for a in self.authors_json])
 
     def get_absolute_url(self):
         return reverse('publication:go', args=[self.short_url])
@@ -226,7 +231,8 @@ class Publication(models.Model):
         if self.doi_name == '':
             return None
         elif self.doi_state == Publication.DOI_STATE_DRAFT:
-            return urljoin("https://doi.test.datacite.org/dois/", quote(self.doi_name, safe=''))
+            return urljoin("https://doi.test.datacite.org/dois/",
+                           quote(self.doi_name, safe=''))
         else:
             return (f"https://doi.org/{self.doi_name}")  # here we keep the slash
 
@@ -389,7 +395,8 @@ class Publication(models.Model):
         }
 
         if not schema42.validate(data):
-            raise DOICreationException("Given data does not validate according to DataCite Schema 4.22!")
+            raise DOICreationException(
+                "Given data does not validate according to DataCite Schema 4.22!")
 
         client_kwargs = dict(
             username=settings.DATACITE_USERNAME,
@@ -399,15 +406,18 @@ class Publication(models.Model):
         )
         requested_doi_state = Publication.DOI_STATE_DRAFT if force_draft else settings.PUBLICATION_DOI_STATE
         try:
-            _log.info(f'Connecting to DataCite REST API at {settings.DATACITE_API_URL} for DOI '
-                      f'prefix {settings.PUBLICATION_DOI_PREFIX}...')
+            _log.info(
+                f'Connecting to DataCite REST API at {settings.DATACITE_API_URL} for DOI '
+                f'prefix {settings.PUBLICATION_DOI_PREFIX}...')
             rest_client = DataCiteRESTClient(**client_kwargs)
             pub_full_url = self.get_full_url()
 
             if requested_doi_state == Publication.DOI_STATE_DRAFT:
-                _log.info(f"Creating draft DOI '{doi_name}' for publication '{self.short_url}' without URL link...")
+                _log.info(
+                    f"Creating draft DOI '{doi_name}' for publication '{self.short_url}' without URL link...")
                 rest_client.draft_doi(data, doi=doi_name)
-                _log.info(f"Linking draft DOI '{doi_name}' for publication '{self.short_url}' to URL {pub_full_url}...")
+                _log.info(
+                    f"Linking draft DOI '{doi_name}' for publication '{self.short_url}' to URL {pub_full_url}...")
                 rest_client.update_url(doi=doi_name, url=pub_full_url)
             elif requested_doi_state == Publication.DOI_STATE_REGISTERED:
                 _log.info(
@@ -420,7 +430,8 @@ class Publication(models.Model):
                     f"linked to {pub_full_url}...")
                 rest_client.public_doi(data, url=pub_full_url, doi=doi_name)
             else:
-                raise DataCiteError(f"Requested DOI state {requested_doi_state} is unknown.")
+                raise DataCiteError(
+                    f"Requested DOI state {requested_doi_state} is unknown.")
             _log.info("Done.")
         except (DataCiteError, HttpError) as exc:
             msg = f"DOI creation failed, reason: {exc}"
@@ -444,7 +455,8 @@ class Publication(models.Model):
         container_bytes = BytesIO()
         _log.info(f"Preparing container for publication '{self.short_url}'..")
         write_surface_container(container_bytes, [self.surface])
-        _log.info(f"Saving container for publication with URL {self.short_url} to storage for later..")
+        _log.info(
+            f"Saving container for publication with URL {self.short_url} to storage for later..")
         container_bytes.seek(0)  # rewind
         self.container.save(self.container_storage_path, container_bytes)
         _log.info("Done.")
@@ -494,7 +506,8 @@ class Publication(models.Model):
         if surface.is_published:
             raise AlreadyPublishedException()
 
-        latest_publication = Publication.objects.filter(original_surface=surface).order_by('version').last()
+        latest_publication = Publication.objects.filter(
+            original_surface=surface).order_by('version').last()
         #
         # We limit the publication rate
         #
@@ -503,7 +516,8 @@ class Publication(models.Model):
             delta_since_last_pub = timezone.now() - latest_publication.datetime
             delta_secs = delta_since_last_pub.total_seconds()
             if delta_secs < min_seconds:
-                raise NewPublicationTooFastException(latest_publication, math.ceil(min_seconds - delta_secs))
+                raise NewPublicationTooFastException(latest_publication, math.ceil(
+                    min_seconds - delta_secs))
 
         #
         # Create a copy of this surface
@@ -545,13 +559,15 @@ class Publication(models.Model):
                 pub.create_doi()
             except DOICreationException as exc:
                 _log.error("DOI creation failed, reason: %s", exc)
-                _log.warning(f"Cannot create publication with DOI, deleting copy (surface {copy.pk}) of "
-                             f"surface {surface.pk} and publication instance.")
+                _log.warning(
+                    f"Cannot create publication with DOI, deleting copy (surface {copy.pk}) of "
+                    f"surface {surface.pk} and publication instance.")
                 pub.delete()  # need to delete pub first because it references copy
                 copy.delete()
                 raise PublicationException(f"Cannot create DOI, reason: {exc}") from exc
         else:
-            _log.info("Skipping creation of DOI, because it is not configured as mandatory.")
+            _log.info(
+                "Skipping creation of DOI, because it is not configured as mandatory.")
 
         _log.info(f"Published surface {surface.name} (id: {surface.id}) " +
                   f"with license {license}, version {version}, authors '{authors}'")

@@ -31,7 +31,7 @@ def test_welcome_page_statistics(
     client, test_instances, orcid_socialapp, handle_usage_statistics
 ):
     (user_1, user_2), (surface_1, surface_2), (topography_1,) = test_instances
-    surface_2.share(user_2)
+    surface_2.grant_permission(user_2)
 
     Publication.publish(surface_1, "cc0-1.0", "Issac Newton")
 

@@ -10,9 +10,9 @@ import pytest
 import topobank
 import yaml
 from django.conf import settings
+from django.test import override_settings
 from topobank.manager.containers import write_surface_container
 from topobank.manager.models import Topography
-from topobank.testing.data import FIXTURE_DATA_DIR
 from topobank.testing.factories import (SurfaceFactory, TagFactory,
                                         Topography1DFactory,
                                         Topography2DFactory, UserFactory)
@@ -20,8 +20,9 @@ from topobank.testing.factories import (SurfaceFactory, TagFactory,
 from ..models import Publication
 
 
+@override_settings(DELETE_EXISTING_FILES=True)
 @pytest.mark.django_db
-def test_surface_container(example_authors):
+def test_surface_container(example_authors, django_capture_on_commit_callbacks):
     instrument_name = "My nice profilometer"
     instrument_type = "contact-based"
     instrument_params = {
@@ -40,10 +41,10 @@ def test_surface_container(example_authors):
     surface2 = SurfaceFactory(creator=user)
     surface3 = SurfaceFactory(creator=user, description="Nice results")
 
-    topo1a = Topography1DFactory(surface=surface1)
+    Topography1DFactory(surface=surface1)
     topo1b = Topography2DFactory(
         surface=surface1,
-        datafile__from_path=FIXTURE_DATA_DIR + "/example4.txt",
+        filename="example4.txt",
         height_scale_editable=False,
     )
     # for topo1b we use a datafile which has an height_scale_factor defined - this is needed in order
@@ -66,13 +67,12 @@ def test_surface_container(example_authors):
     # surface 3 is empty
 
     # surface 2 is published
-    publication = Publication.publish(surface2, "cc0-1.0", example_authors)
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        publication = Publication.publish(surface2, "cc0-1.0", example_authors)
+    assert len(callbacks) == 1
     surface4 = publication.surface
     surfaces = [surface1, surface2, surface3, surface4]
-
-    # make sure all squeezed files have been generated
-    for t in [topo1a, topo1b, topo2a]:
-        t.renew_squeezed_datafile()
+    assert publication.surface.topography_set.first().squeezed_datafile
 
     #
     # Create container file
@@ -108,8 +108,10 @@ def test_surface_container(example_authors):
         for surf_descr in meta_surfaces:
             for topo_descr in surf_descr["topographies"]:
                 datafile_name = topo_descr["datafile"]["original"]
+                assert datafile_name
                 assert datafile_name in zf.namelist()
                 squeezed_datafile_name = topo_descr["datafile"]["squeezed-netcdf"]
+                assert squeezed_datafile_name
                 assert squeezed_datafile_name in zf.namelist()
 
         # check version information

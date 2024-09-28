@@ -1,6 +1,7 @@
 import pytest
 from ce_ui.utils import selection_from_session, selection_to_instances
 from django.shortcuts import reverse
+from django.test import override_settings
 from topobank.testing.factories import (SurfaceFactory, Topography1DFactory,
                                         UserFactory)
 from topobank.testing.utils import assert_in_content
@@ -8,6 +9,7 @@ from topobank.testing.utils import assert_in_content
 from ..models import Publication
 
 
+@override_settings(DELETE_EXISTING_FILES=True)
 @pytest.mark.django_db
 def test_anonymous_user_can_see_published(
     api_client, handle_usage_statistics, example_authors
@@ -29,6 +31,7 @@ def test_anonymous_user_can_see_published(
     assert_in_content(response, surface_name)
 
 
+@override_settings(DELETE_EXISTING_FILES=True)
 @pytest.mark.django_db
 def test_anonymous_user_can_select_published(client, handle_usage_statistics):
     bob = UserFactory(name="Bob")
