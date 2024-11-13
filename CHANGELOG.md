@@ -1,5 +1,9 @@
 # Changelog for plugin *topobank-publication*
 
+## 1.7.0 (2024-11-13)
+
+- MAINT: Updates for API changes in topobank 1.50.0
+
 ## 1.6.4 (2024-03-22)
  
 - BUG: Fixed version discovery
