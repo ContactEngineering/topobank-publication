@@ -1,5 +1,9 @@
 # Changelog for plugin *topobank-publication*
 
+## 1.7.1 (to be released)
+
+- BUG: Fixed publishing page when measurements are missing
+
 ## 1.7.0 (2024-11-13)
 
 - MAINT: Updates for API changes in topobank 1.50.0
