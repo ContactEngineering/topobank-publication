@@ -160,14 +160,14 @@ class PublicationRateTooHighView(TemplateView):
             {
                 "title": f"{surface.label}",
                 "icon": "gem",
-                "icon_style_prefix": "far",
+                "icon_style_prefix": "fa-regular",
                 "href": f"{reverse('ce_ui:surface-detail')}?surface={surface.pk}",
                 "active": False,
                 "tooltip": f"Properties of surface '{surface.label}'",
             },
             {
                 "title": "Publication rate too high",
-                "icon": "flash",
+                "icon": "bolt",
                 "href": self.request.path,
                 "active": True,
             },
@@ -188,14 +188,14 @@ class PublicationErrorView(TemplateView):
             {
                 "title": f"{surface.label}",
                 "icon": "gem",
-                "icon_style_prefix": "far",
+                "icon_style_prefix": "fa-regular",
                 "href": f"{reverse('ce_ui:surface-detail')}?surface={surface.pk}",
                 "active": False,
                 "tooltip": f"Properties of surface '{surface.label}'",
             },
             {
                 "title": "Publication error",
-                "icon": "flash",
+                "icon": "bolt",
                 "href": self.request.path,
                 "active": True,
             },
