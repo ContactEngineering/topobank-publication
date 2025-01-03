@@ -2,6 +2,7 @@
 
 ## 1.7.1 (to be released)
 
+- BUG: Fixed publishing page when measurements are missing
 - BUG: Update used icons to fontawesome 6
 
 ## 1.7.0 (2024-11-13)
