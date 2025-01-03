@@ -54,7 +54,7 @@
           <div class="col">
             <a class="btn btn-default alert-link"
                href="{% url 'manager:topography-create' surface.id %}">
-              {% fa5_icon 'plus-square-o' %} Add measurement
+              {% fa6_icon 'square-plus' %} Add measurement
             </a>
           </div>
         </div>
@@ -165,21 +165,21 @@
                       title="Delete this affiliation"
                       type="button"
                       v-bind:class="{ disabled: $parent.num_affiliations==1 }"
-                      @click="$parent.delete_affiliation(affiliation_idx)">{% fa5_icon 'trash' %}</button>
+                      @click="$parent.delete_affiliation(affiliation_idx)">{% fa6_icon 'trash' %}</button>
               <button class="btn btn-sm btn-secondary"
                       title="Move this affiliation up"
                       type="button"
                       v-bind:class="{ disabled: affiliation_idx==0 }"
-                      @click="$parent.move_affiliation_up(affiliation_idx)">{% fa5_icon 'arrow-up' %}</button>
+                      @click="$parent.move_affiliation_up(affiliation_idx)">{% fa6_icon 'arrow-up' %}</button>
               <button class="btn btn-sm btn-secondary"
                       title="Move this affiliation down"
                       type="button"
                       v-bind:class="{ disabled: affiliation_idx==$parent.num_affiliations-1 }"
-                      @click="$parent.move_affiliation_down(affiliation_idx)">{% fa5_icon 'arrow-down' %}</button>
+                      @click="$parent.move_affiliation_down(affiliation_idx)">{% fa6_icon 'arrow-down' %}</button>
               {#<button class="btn btn-sm btn-secondary"#}
               {#        title="Add an affiliation"#}
               {#        type="button"#}
-              {#        @click="$parent.add_affiliation(affiliation_idx+1)">{% fa5_icon 'university' %}#}
+              {#        @click="$parent.add_affiliation(affiliation_idx+1)">{% fa6_icon 'building-columns' %}#}
               {#        </button>#}
             </div>
           </div>
@@ -220,26 +220,26 @@
                           title="Delete this author"
                           type="button"
                           v-bind:class="{ disabled: $parent.num_authors==1 }"
-                          @click="$parent.delete_author(author_idx)">{% fa5_icon 'trash' %}</button>
+                          @click="$parent.delete_author(author_idx)">{% fa6_icon 'trash' %}</button>
                   <button class="btn btn-secondary insert-me-btn"
                           title="Insert your name and ORCID ID as author"
                           type="button"
                           v-bind:class="{ }"
-                          @click="$parent.insert_user_as_author(author_idx)">{% fa5_icon 'address-card' %}</button>
+                          @click="$parent.insert_user_as_author(author_idx)">{% fa6_icon 'address-card' %}</button>
                   <button class="btn btn-secondary"
                           title="Move this author up"
                           type="button"
                           v-bind:class="{ disabled: author_idx==0 }"
-                          @click="$parent.move_author_up(author_idx)">{% fa5_icon 'arrow-up' %}</button>
+                          @click="$parent.move_author_up(author_idx)">{% fa6_icon 'arrow-up' %}</button>
                   <button class="btn btn-secondary"
                           title="Move this author down"
                           type="button"
                           v-bind:class="{ disabled: author_idx==$parent.num_authors-1 }"
-                          @click="$parent.move_author_down(author_idx)">{% fa5_icon 'arrow-down' %}</button>
+                          @click="$parent.move_author_down(author_idx)">{% fa6_icon 'arrow-down' %}</button>
                   {#<button class="btn btn-secondary"#}
                   {#        title="Add one author"#}
                   {#        type="button"#}
-                  {#        @click="$parent.add_author(author_idx+1)">{% fa5_icon 'user-plus' %}</button>#}
+                  {#        @click="$parent.add_author(author_idx+1)">{% fa6_icon 'user-plus' %}</button>#}
                 </div>
                 </div>
               </div>
@@ -258,7 +258,7 @@
                   <button class="btn btn-sm btn-secondary"
                     title="One more affiliation"
                     type="button"
-                    @click="add_affiliation(num_affiliations)">{% fa5_icon 'plus' %}One more affiliation for this author
+                    @click="add_affiliation(num_affiliations)">{% fa6_icon 'plus' %}One more affiliation for this author
                     </button>
                 </ol>
               </div>
