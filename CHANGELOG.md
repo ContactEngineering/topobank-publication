@@ -1,6 +1,6 @@
 # Changelog for plugin *topobank-publication*
 
-## 1.7.1 (to be released)
+## 1.7.1 (2025-02-11)
 
 - BUG: Fixed publishing page when measurements are missing
 - BUG: Update used icons to fontawesome 6
