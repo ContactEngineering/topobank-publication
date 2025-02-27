@@ -2,6 +2,7 @@
 
 ## 1.7.2 (2025-02-27)
 
+- BUG: Fixing checking for access to original surface if original surface does not exist
 - BUG: Use `PermissionDenied` rather than `PermissionError` so that permission
   errors are reported to the user
 
@@ -32,8 +33,8 @@
 
 ## 1.6.0 (2024-01-26)
 
-- ENH: /go links return API redirect if `application/json` is requested,
-  otherwise HTML redirect (#9)
+- ENH: /go links return API redirect if `application/json` is requested, otherwise HTML
+  redirect (#9)
 - ENH: API endpoint for publication now returns download link
 - BUG: Fix to /go links (#8)
 - MAINT: Adding gitignore

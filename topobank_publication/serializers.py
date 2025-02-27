@@ -49,7 +49,11 @@ class PublicationSerializer(serializers.HyperlinkedModelSerializer):
         return d
 
     def get_has_access_to_original_surface(self, obj):
-        return obj.original_surface.has_permission(self.context["request"].user, "view")
+        if obj.original_surface:
+            return obj.original_surface.has_permission(
+                self.context["request"].user, "view"
+            )
+        return False
 
     def get_download_url(self, obj):
         return reverse(
