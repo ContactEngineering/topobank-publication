@@ -1,5 +1,10 @@
 # Changelog for plugin *topobank-publication*
 
+## 1.7.2 (2025-02-27)
+
+- BUG: Use `PermissionDenied` rather than `PermissionError` so that permission
+  errors are reported to the user
+
 ## 1.7.1 (2025-02-11)
 
 - BUG: Fixed publishing page when measurements are missing
