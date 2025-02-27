@@ -2,6 +2,7 @@ import logging
 
 from django.conf import settings
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -81,7 +82,7 @@ class SurfacePublishView(FormView):
     def dispatch(self, request, *args, **kwargs):
         surface = self._get_surface()
         if not surface.has_permission(request.user, "full"):
-            raise PermissionError(
+            raise PermissionDenied(
                 f"User {request.user} does not have permission to "
                 "publish this dataset."
             )
