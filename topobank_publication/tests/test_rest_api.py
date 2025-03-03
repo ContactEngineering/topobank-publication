@@ -13,7 +13,7 @@ def test_delete_surface_routes(
     surface3 = topo3.surface
 
     # Delete of a published surface should always fail
-    pub = Publication.publish(surface3, "cc0", "Bob")
+    pub = Publication.publish(surface3, "cc0", surface3.creator, "Bob")
     assert Surface.objects.count() == 4
     response = api_client.delete(
         reverse("manager:surface-api-detail", kwargs=dict(pk=pub.surface.id))
@@ -43,7 +43,7 @@ def test_patch_topography_routes(api_client, two_users, handle_usage_statistics)
     new_name = "My third new name"
 
     # Patch of a published surface should always fail
-    pub = Publication.publish(topo3.surface, "cc0", "Bob")
+    pub = Publication.publish(topo3.surface, "cc0", topo3.surface.creator, "Bob")
     (topo_pub,) = pub.surface.topography_set.all()
     assert Topography.objects.count() == 4
     response = api_client.patch(

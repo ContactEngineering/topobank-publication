@@ -30,7 +30,7 @@ def example_pub(example_authors):  # noqa: F811
     surface.tags = ["diamond"]
 
     with freeze_time(publication_date):
-        pub = Publication.publish(surface, "cc0-1.0", example_authors)
+        pub = Publication.publish(surface, "cc0-1.0", surface.creator, example_authors)
 
     return pub
 

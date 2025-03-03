@@ -15,9 +15,9 @@ def two_analyses_two_publications(test_analysis_function):
     Topography1DFactory(surface=surface1)
     surface2 = SurfaceFactory()
     Topography1DFactory(surface=surface2)
-    pub1 = Publication.publish(surface1, "cc0-1.0", surface1.creator.name)
+    pub1 = Publication.publish(surface1, "cc0-1.0", surface1.creator, surface1.creator.name)
     pub2 = Publication.publish(
-        surface2, "cc0-1.0", surface1.creator.name + ", " + surface2.creator.name
+        surface2, "cc0-1.0", surface1.creator, surface1.creator.name + ", " + surface2.creator.name
     )
     pub_topo1 = pub1.surface.topography_set.first()
     pub_topo2 = pub2.surface.topography_set.first()

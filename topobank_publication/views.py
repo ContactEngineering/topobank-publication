@@ -1,10 +1,11 @@
 import logging
 
+import ce_ui.breadcrumb as breadcrumb
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
-from django.shortcuts import redirect
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views.generic import FormView, TemplateView
 from rest_framework import mixins, viewsets
@@ -75,12 +76,12 @@ class SurfacePublishView(FormView):
     template_name = "surface_publish.html"
     form_class = SurfacePublishForm
 
-    def _get_surface(self):
+    def get_surface(self):
         surface_pk = self.kwargs["pk"]
-        return Surface.objects.get(pk=surface_pk)
+        return get_object_or_404(Surface, pk=surface_pk)
 
     def dispatch(self, request, *args, **kwargs):
-        surface = self._get_surface()
+        surface = self.get_surface()
         if not surface.has_permission(request.user, "full"):
             raise PermissionDenied(
                 f"User {request.user} does not have permission to "
@@ -100,9 +101,9 @@ class SurfacePublishView(FormView):
     def form_valid(self, form):
         license = form.cleaned_data.get("license")
         authors = form.cleaned_data.get("authors_json")
-        surface = self._get_surface()
+        surface = self.get_surface()
         try:
-            Publication.publish(surface, license, authors)
+            Publication.publish(surface, license, self.request.user, authors)
         except NewPublicationTooFastException:
             return redirect(
                 "publication:surface-publication-rate-too-high", pk=surface.pk
@@ -118,24 +119,17 @@ class SurfacePublishView(FormView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        surface = self._get_surface()
+        surface = self.get_surface()
 
-        context["extra_tabs"] = [
-            {
-                "title": f"{surface.label}",
-                "icon": "gem",
-                "icon_style_prefix": "far",
-                "href": f"{reverse('ce_ui:surface-detail')}?surface={surface.pk}",
-                "active": False,
-                "tooltip": f"Properties of surface '{surface.label}'",
-            },
+        breadcrumb.add_surface(context, surface)
+        context["extra_tabs"] += [
             {
                 "title": "Publish surface?",
                 "icon": "bullhorn",
                 "href": self.request.path,
                 "active": True,
                 "tooltip": f"Publishing surface '{surface.label}'",
-            },
+            }
         ]
         context["surface"] = surface
         context["max_len_authors_field"] = MAX_LEN_AUTHORS_FIELD
@@ -155,23 +149,16 @@ class PublicationRateTooHighView(TemplateView):
         context["min_seconds"] = settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS
 
         surface_pk = self.kwargs["pk"]
-        surface = Surface.objects.get(pk=surface_pk)
+        surface = get_object_or_404(Surface, pk=surface_pk)
 
-        context["extra_tabs"] = [
-            {
-                "title": f"{surface.label}",
-                "icon": "gem",
-                "icon_style_prefix": "fa-regular",
-                "href": f"{reverse('ce_ui:surface-detail')}?surface={surface.pk}",
-                "active": False,
-                "tooltip": f"Properties of surface '{surface.label}'",
-            },
+        breadcrumb.add_surface(context, surface)
+        context["extra_tabs"] += [
             {
                 "title": "Publication rate too high",
                 "icon": "bolt",
                 "href": self.request.path,
                 "active": True,
-            },
+            }
         ]
         return context
 
@@ -183,22 +170,15 @@ class PublicationErrorView(TemplateView):
         context = super().get_context_data(**kwargs)
 
         surface_pk = self.kwargs["pk"]
-        surface = Surface.objects.get(pk=surface_pk)
+        surface = get_object_or_404(Surface, pk=surface_pk)
 
-        context["extra_tabs"] = [
-            {
-                "title": f"{surface.label}",
-                "icon": "gem",
-                "icon_style_prefix": "fa-regular",
-                "href": f"{reverse('ce_ui:surface-detail')}?surface={surface.pk}",
-                "active": False,
-                "tooltip": f"Properties of surface '{surface.label}'",
-            },
+        breadcrumb.add_surface(context, surface)
+        context["extra_tabs"] += [
             {
                 "title": "Publication error",
                 "icon": "bolt",
                 "href": self.request.path,
                 "active": True,
-            },
+            }
         ]
         return context

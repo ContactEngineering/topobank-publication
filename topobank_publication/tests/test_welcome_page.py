@@ -33,7 +33,7 @@ def test_welcome_page_statistics(
     (user_1, user_2), (surface_1, surface_2), (topography_1,) = test_instances
     surface_2.grant_permission(user_2)
 
-    Publication.publish(surface_1, "cc0-1.0", "Issac Newton")
+    Publication.publish(surface_1, "cc0-1.0", surface_1.creator, "Issac Newton")
 
     #
     # Test statistics if user_1 is authenticated
