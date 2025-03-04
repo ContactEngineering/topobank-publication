@@ -1,5 +1,9 @@
 # Changelog for plugin *topobank-publication*
 
+## 1.7.4 (2025-03-04)
+
+- MAINT: Prettified error pages
+
 ## 1.7.3 (2025-03-04)
 
 - BUG: Publisher should be person that published a digital surface twin (was

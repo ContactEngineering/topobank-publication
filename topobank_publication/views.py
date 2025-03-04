@@ -122,6 +122,7 @@ class SurfacePublishView(FormView):
         surface = self.get_surface()
 
         breadcrumb.add_surface(context, surface)
+        breadcrumb.prepare_context(context)
         context["extra_tabs"] += [
             {
                 "title": "Publish surface?",
@@ -152,6 +153,7 @@ class PublicationRateTooHighView(TemplateView):
         surface = get_object_or_404(Surface, pk=surface_pk)
 
         breadcrumb.add_surface(context, surface)
+        breadcrumb.prepare_context(context)
         context["extra_tabs"] += [
             {
                 "title": "Publication rate too high",
@@ -173,6 +175,7 @@ class PublicationErrorView(TemplateView):
         surface = get_object_or_404(Surface, pk=surface_pk)
 
         breadcrumb.add_surface(context, surface)
+        breadcrumb.prepare_context(context)
         context["extra_tabs"] += [
             {
                 "title": "Publication error",
