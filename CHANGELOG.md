@@ -1,6 +1,6 @@
 # Changelog for plugin *topobank-publication*
 
-## 1.8.0 (not yet released)
+## 1.7.3 (2025-03-04)
 
 - BUG: Publisher should be person that published a digital surface twin (was
   that created it)
