@@ -10,20 +10,6 @@
             <div class="alert alert-danger" role="alert">
                 A problem occurred while publishing this digital surface twin.
                 The digital surface twin was not published. Please try again later.
-                {% if messages %}
-                <ul class="list-group">
-                    {% for message in messages %}
-                    <li {% if message.tags %}
-                        class="list-group-item {{ message.tags }}"
-                        {% else %}
-                        class="list-group-item"
-                        {% endif %}
-                    >
-                        {{ message }}
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% endif %}
             </div>
         </div>
     </div>
