@@ -122,16 +122,16 @@ class SurfacePublishView(FormView):
         surface = self.get_surface()
 
         breadcrumb.add_surface(context, surface)
-        breadcrumb.prepare_context(context)
-        context["extra_tabs"] += [
+        breadcrumb.add_generic(
+            context,
             {
                 "title": "Publish surface?",
                 "icon": "bullhorn",
                 "href": self.request.path,
                 "active": True,
                 "tooltip": f"Publishing surface '{surface.label}'",
-            }
-        ]
+            },
+        )
         context["surface"] = surface
         context["max_len_authors_field"] = MAX_LEN_AUTHORS_FIELD
         user = self.request.user
@@ -153,15 +153,15 @@ class PublicationRateTooHighView(TemplateView):
         surface = get_object_or_404(Surface, pk=surface_pk)
 
         breadcrumb.add_surface(context, surface)
-        breadcrumb.prepare_context(context)
-        context["extra_tabs"] += [
+        breadcrumb.add_generic(
+            context,
             {
                 "title": "Publication rate too high",
                 "icon": "bolt",
                 "href": self.request.path,
                 "active": True,
-            }
-        ]
+            },
+        )
         return context
 
 
@@ -175,13 +175,13 @@ class PublicationErrorView(TemplateView):
         surface = get_object_or_404(Surface, pk=surface_pk)
 
         breadcrumb.add_surface(context, surface)
-        breadcrumb.prepare_context(context)
-        context["extra_tabs"] += [
+        breadcrumb.add_generic(
+            context,
             {
                 "title": "Publication error",
                 "icon": "bolt",
                 "href": self.request.path,
                 "active": True,
-            }
-        ]
+            },
+        )
         return context
