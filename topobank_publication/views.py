@@ -1,10 +1,11 @@
 import logging
 
 from django.conf import settings
-from django.contrib import messages
-from django.http import Http404
-from django.shortcuts import redirect
+from django.contrib import auth, messages
+from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden
+from django.shortcuts import HttpResponse, redirect
 from django.urls import reverse
+from django.utils.html import json
 from django.views.generic import FormView, TemplateView
 from rest_framework import mixins, viewsets
 from topobank.manager.models import Surface
@@ -17,6 +18,41 @@ from .serializers import PublicationSerializer
 from .utils import NewPublicationTooFastException, PublicationException
 
 _log = logging.getLogger(__name__)
+
+
+def publish(request):
+    """
+    This view is called when the user clicks "Publish".
+    It checks if the provided data is valid and creates the publication.
+    """
+    data = json.loads(request.body)
+
+    surface: Surface = Surface.objects.get(pk=data["surface"])
+    license = data.get("license")
+    authors = data.get("authors")
+    print(authors)
+
+    # NOTE: Check if the request is malformed
+    if license is None or authors is None or surface is None:
+        return HttpResponseBadRequest()
+
+    # NOTE: Check if the user has the required permissions to publish:
+    if not surface.has_permission(request.user, "full"):
+        return HttpResponseForbidden()
+
+    # NOTE: Publish
+    try:
+        publication = Publication.publish(surface, license, authors)
+        return HttpResponse(content=f"{publication.surface.id}".encode())
+    except NewPublicationTooFastException as rate_limit_exception:
+        # TODO: content as bytes
+        return HttpResponse(
+            status=429, content=f"{rate_limit_exception._wait_seconds}".encode()
+        )
+    except PublicationException as exc:
+        msg = f"Publication failed, reason: {exc}"
+        _log.error(msg)
+        return HttpResponseForbidden()
 
 
 class PublicationViewSet(
