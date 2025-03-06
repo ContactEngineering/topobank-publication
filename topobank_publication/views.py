@@ -31,8 +31,6 @@ def publish(request):
     # - max authors
     # - authors json in general...
 
-    print(authors)
-
     # NOTE: Check if the request is malformed
     if license is None or authors is None or surface is None:
         return HttpResponseBadRequest()
