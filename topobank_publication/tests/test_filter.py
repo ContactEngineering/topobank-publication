@@ -16,7 +16,7 @@ def test_sharing_status_filter(api_client, example_authors, handle_usage_statist
     surface_shared_egress.grant_permission(parceval)
 
     surface_published_egress = SurfaceFactory(name="published-egress", creator=lancelot)
-    Publication.publish(surface_published_egress, "cc0-1.0", example_authors)
+    Publication.publish(surface_published_egress, "cc0-1.0", surface_published_egress.creator, example_authors)
     # NOTE THAT THIS CREATES A COPY !!!!
 
     surface_shared_ingress = SurfaceFactory(name="shared-ingress", creator=parceval)
@@ -24,7 +24,7 @@ def test_sharing_status_filter(api_client, example_authors, handle_usage_statist
     surface_published_ingress = SurfaceFactory(
         name="published-ingress", creator=parceval
     )
-    Publication.publish(surface_published_ingress, "cc0-1.0", example_authors)
+    Publication.publish(surface_published_ingress, "cc0-1.0", surface_published_ingress.creator, example_authors)
     SurfaceFactory(name="invisible", creator=parceval)
 
     api_client.force_login(lancelot)

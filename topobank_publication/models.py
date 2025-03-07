@@ -493,17 +493,22 @@ class Publication(models.Model):
         _log.info("Done.")
 
     @staticmethod
-    def publish(surface, license, authors):
-        """Publish surface.
+    def publish(surface, license, publisher, authors):
+        """
+        Publish surface.
 
         An immutable copy is created along with a publication entry.
         The latter is returned.
 
         Parameters
         ----------
-        license: str
-            One of the keys of LICENSE_CHOICES
-        authors: list
+        surface : Surface
+            The surface object to be published.
+        license : str
+            One of the keys of LICENSE_CHOICES.
+        publisher : User
+            The user who is publishing the surface.
+        authors : list
             List of authors as list of dicts, where each dict has the
             form as in the example below. Will be saved as-is in JSON
             format and will be used for creating a DOI.
@@ -511,6 +516,18 @@ class Publication(models.Model):
         Returns
         -------
         Publication
+            The created publication object.
+
+        Raises
+        ------
+        PublicationsDisabledException
+            If publications are disabled in the settings.
+        AlreadyPublishedException
+            If the surface is already published.
+        NewPublicationTooFastException
+            If a new publication is attempted too soon after the last one.
+        PublicationException
+            If there is an error during the publication process.
 
         (Fictional) Example of a dict representing an author:
 
@@ -529,7 +546,6 @@ class Publication(models.Model):
                 },
             ]
         }
-
         """
         if not settings.PUBLICATION_ENABLED:
             raise PublicationsDisabledException()

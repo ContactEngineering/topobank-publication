@@ -191,7 +191,7 @@ def test_surface_to_dict(mocker, example_authors):
     doi_url_mock = mocker.patch('topobank_publication.models.Publication.doi_url', new_callable=mocker.PropertyMock)
     doi_url_mock.return_value = fake_doi_url
 
-    publication = Publication.publish(surface, license, example_authors)
+    publication = Publication.publish(surface, license, surface.creator, example_authors)
 
     expected_dict_published['is_published'] = True
     expected_dict_published['publication'] = {

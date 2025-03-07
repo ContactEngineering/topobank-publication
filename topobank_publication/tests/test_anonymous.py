@@ -22,7 +22,7 @@ def test_anonymous_user_can_see_published(
     surface = SurfaceFactory(creator=bob, name=surface_name)
     Topography1DFactory(surface=surface)
 
-    Publication.publish(surface, "cc0-1.0", example_authors)
+    Publication.publish(surface, "cc0-1.0", surface.creator, example_authors)
 
     # no one is logged in now, assuming the select tab sends a search request
     response = api_client.get(reverse("ce_ui:search"))
@@ -38,7 +38,7 @@ def test_anonymous_user_can_select_published(client, handle_usage_statistics):
     surface_name = "Diamond Structure"
     surface = SurfaceFactory(creator=bob, name=surface_name)
     Topography1DFactory(surface=surface)
-    pub = Publication.publish(surface, "cc0-1.0", bob.name)
+    pub = Publication.publish(surface, "cc0-1.0", surface.creator, bob.name)
     published_surface = pub.surface
     published_topo = published_surface.topography_set.first()
 

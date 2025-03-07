@@ -68,7 +68,7 @@ def test_surface_container(example_authors, django_capture_on_commit_callbacks):
 
     # surface 2 is published
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
-        publication = Publication.publish(surface2, "cc0-1.0", example_authors)
+        publication = Publication.publish(surface2, "cc0-1.0", surface2.creator, example_authors)
     assert len(callbacks) == 1
     surface4 = publication.surface
     surfaces = [surface1, surface2, surface3, surface4]

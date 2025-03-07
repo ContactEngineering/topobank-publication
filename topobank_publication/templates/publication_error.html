@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container d-flex justify-content-center align-items-center h-100">
+    <div class="card bg-danger w-50">
+        <h3 class="card-header">
+            Error
+        </h3>
+        <div class="card-body">
+            <div class="alert alert-danger" role="alert">
+                A problem occurred while publishing this digital surface twin.
+                The digital surface twin was not published. Please try again later.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
