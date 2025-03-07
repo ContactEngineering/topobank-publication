@@ -41,7 +41,7 @@ def publish(request):
 
     # NOTE: Publish
     try:
-        publication = Publication.publish(surface, license, authors)
+        publication = Publication.publish(surface, license, request.user, authors)
         return HttpResponse(content=f"{publication.surface.id}".encode())
     except NewPublicationTooFastException as rate_limit_exception:
         # TODO: content as bytes

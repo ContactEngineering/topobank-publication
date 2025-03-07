@@ -603,8 +603,8 @@ class Publication(models.Model):
             authors_json=authors,
             license=license,
             version=version,
-            publisher=surface.creator,
-            publisher_orcid_id=surface.creator.orcid_id,
+            publisher=publisher,
+            publisher_orcid_id=publisher.orcid_id,
         )
 
         #
