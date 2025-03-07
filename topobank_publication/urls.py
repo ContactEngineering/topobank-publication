@@ -16,5 +16,5 @@ urlprefix = "publication/"
 urlpatterns += [
     path("publish/", view=views.publish, name="test"),
     # FIXME: This url has to be absolute
-    path("/go/<str:short_url>/", view=views.go, name="go"),
+    path("go/<str:short_url>/", view=views.go, name="go"),
 ]

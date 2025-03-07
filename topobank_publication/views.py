@@ -9,7 +9,7 @@ from topobank.manager.models import Surface
 from topobank.usage_stats.utils import increase_statistics_by_date_and_object
 from trackstats.models import Metric, Period
 
-from .models import MAX_LEN_AUTHORS_FIELD, Publication
+from .models import Publication
 from .serializers import PublicationSerializer
 from .utils import NewPublicationTooFastException, PublicationException
 
