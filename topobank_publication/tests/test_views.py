@@ -11,7 +11,7 @@ from topobank.testing.utils import assert_in_content
 
 
 @pytest.mark.django_db
-def test_go_link_html(client, example_pub):
+def test_go_link_html(client, example_pub, orcid_socialapp):
     # The normal client send not header
     user = UserFactory()
     client.force_login(user)
