@@ -268,13 +268,13 @@ def test_dont_show_published_surfaces_when_shared_filter_used(
     client.force_login(bob)
 
     response = client.get(
-        reverse("ce_ui:search") + "?sharing_status=others"
+        reverse("manager:surface-api-list") + "?sharing_status=others"
     )  # means "created by someone else"
     assert_in_content(response, "Shared Surface")
     assert_not_in_content(response, "Published Surface")
 
     response = client.get(
-        reverse("ce_ui:search") + "?sharing_status=published"
+        reverse("manager:surface-api-list") + "?sharing_status=published"
     )  # means "published by anyone"
     assert_not_in_content(response, "Shared Surface")
     assert_in_content(response, "Published Surface")

@@ -68,7 +68,7 @@ def go(request, short_url):
         return redirect(pub.get_api_url())
     else:
         return redirect(
-            f"{reverse('ce_ui:surface-detail')}?surface={pub.surface.pk}"
+            f"{reverse('ce_ui:surface-detail', kwargs=dict(pk=pub.surface.pk))}"
         )  # <- topobank does not know this
 
 
@@ -96,7 +96,7 @@ class SurfacePublishView(FormView):
         return initial
 
     def get_success_url(self):
-        return f"{reverse('ce_ui:surface-detail')}?surface={self.kwargs['pk']}"
+        return f"{reverse('ce_ui:surface-detail', kwargs=dict(pk=self.kwargs['pk']))}"
 
     def form_valid(self, form):
         license = form.cleaned_data.get("license")

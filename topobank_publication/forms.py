@@ -1,15 +1,12 @@
 import logging
 import re
 
+import bleach  # using bleach instead of django.utils.html.escape because it allows more (e.g. for markdown)
+from crispy_forms.bootstrap import FormActions
+from crispy_forms.helper import FormHelper
+from crispy_forms.layout import HTML, Div, Field, Layout, Submit
 from django import forms
 from django.conf import settings
-
-import bleach  # using bleach instead of django.utils.html.escape because it allows more (e.g. for markdown)
-
-from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Submit, Layout, Field, HTML, Div
-from crispy_forms.bootstrap import FormActions
-
 from topobank.manager.models import Surface
 
 _log = logging.getLogger(__name__)
@@ -56,7 +53,7 @@ class SurfacePublishForm(forms.Form):
             Field('copyright_hold'),
             FormActions(
                 Submit('save', 'Yes, publish this digital surface twin', css_class='btn-success'),
-                HTML("""<a href="{% url 'ce_ui:surface-detail' %}?surface={{ surface.pk }}" """
+                HTML("""<a href="{% url 'ce_ui:surface-detail' surface.pk %}" """
                      """class="btn btn-default" id="cancel-btn">Cancel</a>"""),
             ),
             ASTERISK_HELP_HTML,
