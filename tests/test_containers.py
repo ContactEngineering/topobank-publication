@@ -17,7 +17,7 @@ from topobank.testing.factories import (SurfaceFactory, TagFactory,
                                         Topography1DFactory,
                                         Topography2DFactory, UserFactory)
 
-from ..models import Publication
+from topobank_publication.models import Publication
 
 
 @override_settings(DELETE_EXISTING_FILES=True)

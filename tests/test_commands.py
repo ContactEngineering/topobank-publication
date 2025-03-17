@@ -2,11 +2,10 @@
 Test management commands for publication app.
 """
 
+import pytest
 from django.core.management import call_command
 
-import pytest
-
-from .utils import PublicationFactory
+from topobank_publication.testing.factories import PublicationFactory
 
 
 @pytest.mark.django_db

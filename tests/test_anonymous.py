@@ -5,7 +5,7 @@ from topobank.testing.factories import (SurfaceFactory, Topography1DFactory,
                                         UserFactory)
 from topobank.testing.utils import assert_in_content
 
-from ..models import Publication
+from topobank_publication.models import Publication
 
 
 @override_settings(DELETE_EXISTING_FILES=True)
@@ -24,7 +24,7 @@ def test_anonymous_user_can_see_published(
     Publication.publish(surface, "cc0-1.0", surface.creator, example_authors)
 
     # no one is logged in now, assuming the select tab sends a search request
-    response = api_client.get(f"{reverse('manager:surface-api-list')}?search_term={surface.name}")
+    response = api_client.get(reverse("manager:surface-api-list"))
 
     # should see the published surface
     assert_in_content(response, surface_name)

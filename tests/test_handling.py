@@ -22,7 +22,7 @@ def test_usage_of_cached_container_on_download_of_published_surface(client, exam
 
     def download_published():
         """Download published surface, returns HTTPResponse"""
-        return client.get(reverse('manager:surface-download', kwargs=dict(surface_id=surface.id)), follow=True)
+        return client.get(reverse('manager:surface-download', kwargs=dict(surface_ids=str(surface.id))), follow=True)
 
     #
     # first download

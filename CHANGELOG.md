@@ -1,5 +1,10 @@
 # Changelog for plugin *topobank-publication*
 
+## 1.8.0 (2025-03-17)
+
+- ENH: New publication flow
+- ENH: REST API for publication
+
 ## 1.7.4 (2025-03-04)
 
 - MAINT: Prettified error pages

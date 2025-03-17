@@ -2,6 +2,7 @@ import datetime
 import zipfile
 
 import django.db.models.deletion
+import pydantic
 import pytest
 from django.conf import settings
 from django.shortcuts import reverse
@@ -10,7 +11,6 @@ from topobank.testing.factories import (SurfaceFactory, TagFactory,
                                         Topography2DFactory, UserFactory)
 from topobank.testing.utils import assert_in_content, assert_not_in_content
 
-from topobank_publication.forms import SurfacePublishForm
 from topobank_publication.models import Publication
 from topobank_publication.utils import (NewPublicationTooFastException,
                                         PublicationException,
@@ -21,8 +21,8 @@ from topobank_publication.utils import (NewPublicationTooFastException,
 bob = dict(
     first_name="Bob",
     last_name="Doe",
-    orcid_id="123",
-    affiliations=[dict(name="UofA", ror_id="123")],
+    orcid_id="1234-4567-8901-2345",
+    affiliations=[dict(name="UofA", ror_id="04dkp9463")],
 )
 
 
@@ -31,12 +31,22 @@ def test_publication_version(settings):
     settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = None  # disable
 
     surface = SurfaceFactory()
-    publication_v1 = Publication.publish(surface, "cc0-1.0", surface.creator, "Bob")
+    publication_v1 = Publication.publish(
+        surface,
+        "cc0-1.0",
+        surface.creator,
+        [{"first_name": "Bob", "last_name": "Marley", "affiliations": []}],
+    )
 
     assert publication_v1.version == 1
 
     surface.name = "new name"
-    publication_v2 = Publication.publish(surface, "cc0-1.0", surface.creator, "Bob")
+    publication_v2 = Publication.publish(
+        surface,
+        "cc0-1.0",
+        surface.creator,
+        [{"first_name": "Bob", "last_name": "Marley", "affiliations": []}],
+    )
     assert publication_v2.version == 2
 
     assert publication_v1.original_surface == publication_v2.original_surface
@@ -48,7 +58,12 @@ def test_publication_disabled(settings):
     settings.PUBLICATION_ENABLED = False
     surface = SurfaceFactory()
     with pytest.raises(PublicationsDisabledException):
-        Publication.publish(surface, "cc0-1.0", surface.creator, "Bob")
+        Publication.publish(
+            surface,
+            "cc0-1.0",
+            surface.creator,
+            [{"first_name": "Bob", "last_name": "Marley", "affiliations": []}],
+        )
 
 
 @pytest.mark.django_db
@@ -58,7 +73,12 @@ def test_publication_superuser(settings):
     surface.creator.save()
     nb_surfaces = len(Surface.objects.all())
     with pytest.raises(PublicationException):
-        Publication.publish(surface, "cc0-1.0", surface.creator, "Bob")
+        Publication.publish(
+            surface,
+            "cc0-1.0",
+            surface.creator,
+            [{"first_name": "Bob", "last_name": "Marley", "affiliations": []}],
+        )
     # Make sure that the copy, and not the original surface, is deleted again
     assert len(Surface.objects.all()) == nb_surfaces
 
@@ -80,7 +100,9 @@ def test_failing_publication(settings):
 def test_publication_fields(example_authors):
     user = UserFactory(name="Tom")
     surface = SurfaceFactory(creator=user)
-    publication = Publication.publish(surface, "cc0-1.0", surface.creator, example_authors)
+    publication = Publication.publish(
+        surface, "cc0-1.0", surface.creator, example_authors
+    )
 
     assert publication.license == "cc0-1.0"
     assert publication.original_surface == surface
@@ -94,7 +116,12 @@ def test_publication_fields(example_authors):
 def test_published_field():
     surface = SurfaceFactory()
     assert not surface.is_published
-    publication = Publication.publish(surface, "cc0-1.0", surface.creator, "Alice")
+    publication = Publication.publish(
+        surface,
+        "cc0-1.0",
+        surface.creator,
+        [{"first_name": "Alice", "last_name": "Wonderland", "affiliations": []}],
+    )
     assert not publication.original_surface.is_published
     assert publication.surface.is_published
 
@@ -134,7 +161,12 @@ def test_permissions_for_published():
     assert not surface.has_permission(user2, "view")
 
     # for the published surface, both users are only allowed viewing
-    publication = Publication.publish(surface, "cc0-1.0", surface.creator, "Alice")
+    publication = Publication.publish(
+        surface,
+        "cc0-1.0",
+        surface.creator,
+        [{"first_name": "Alice", "last_name": "Wonderland", "affiliations": []}],
+    )
 
     assert publication.surface.get_permission(user1) == "view"
     assert publication.surface.get_permission(user2) == "view"
@@ -221,12 +253,15 @@ def test_license_in_surface_download(
     user2 = UserFactory()
     surface = SurfaceFactory(creator=user1)
     Topography2DFactory(surface=surface)
-    publication = Publication.publish(surface, license, surface.creator, example_authors)
+    publication = Publication.publish(
+        surface, license, surface.creator, example_authors
+    )
     client.force_login(user2)
 
     response = client.get(
         reverse(
-            "manager:surface-download", kwargs=dict(surface_id=publication.surface.id)
+            "manager:surface-download",
+            kwargs=dict(surface_ids=str(publication.surface.id)),
         )
     )
 
@@ -294,58 +329,36 @@ def test_limit_publication_frequency(settings):
     alice = UserFactory()
     surface = SurfaceFactory(creator=alice)
 
-    Publication.publish(surface, "cc0-1.0", surface.creator, "Alice")
+    Publication.publish(
+        surface,
+        "cc0-1.0",
+        surface.creator,
+        [{"first_name": "Alice", "last_name": "Wonderland", "affiliations": []}],
+    )
     with pytest.raises(NewPublicationTooFastException):
-        Publication.publish(surface, "cc0-1.0", surface.creator, "Alice, Bob")
+        Publication.publish(
+            surface,
+            "cc0-1.0",
+            surface.creator,
+            [
+                {"first_name": "Alice", "last_name": "Wonderland", "affiliations": []},
+                {"first_name": "Bob", "last_name": "Marley", "affiliations": []},
+            ],
+        )
 
 
 def test_publishing_no_authors_given():
+    alice = UserFactory()
+    surface = SurfaceFactory(creator=alice, name="Shared Surface")
+    with pytest.raises(pydantic.ValidationError):
+        Publication.publish(surface, "cc0-1.0", alice, [])
+
+
+def test_publishing_invalid_orcid(api_client, one_line_scan):
+    api_client.force_login(one_line_scan.creator)
     form_data = {
-        "license": "cc0-1.0",
-        "agreed": True,
-        "copyright_hold": True,
-    }
-    form = SurfacePublishForm(data=form_data)
-    assert not form.is_valid()
-    assert form.errors["__all__"] == ["At least one author must be given."]
-
-
-def test_publishing_unique_author_names():
-    form_data = {
-        "authors_json": [
-            {
-                "first_name": "Alice",
-                "last_name": "Wonderland",
-                "orcid_id": "",
-                "affiliations": [],
-            },
-            {
-                "first_name": "Bob",
-                "last_name": "Wonderland",
-                "orcid_id": "",
-                "affiliations": [],
-            },
-            {
-                "first_name": "Alice",
-                "last_name": "Wonderland",
-                "orcid_id": "",
-                "affiliations": [],
-            },
-        ],
-        "license": "cc0-1.0",
-        "agreed": True,
-        "copyright_hold": True,
-    }
-    form = SurfacePublishForm(data=form_data)
-    assert not form.is_valid()
-    assert form.errors["__all__"] == [
-        "Duplicate author given! Make sure authors differ in at least one field."
-    ]
-
-
-def test_publishing_invalid_orcid():
-    form_data = {
-        "authors_json": [
+        "surface": one_line_scan.surface.id,
+        "authors": [
             {
                 "first_name": "Alice",
                 "last_name": "Wonderland",
@@ -354,20 +367,17 @@ def test_publishing_invalid_orcid():
             },
         ],
         "license": "cc0-1.0",
-        "agreed": True,
-        "copyright_hold": True,
     }
-    form = SurfacePublishForm(data=form_data)
-    assert not form.is_valid()
-    assert form.errors["__all__"] == [
-        "ORCID ID must match pattern xxxx-xxxx-xxxx-xxxy, where x is a digit "
-        "and y a digit or the capital letter X."
-    ]
+    response = api_client.post(reverse("publication:publish"), data=form_data)
+    assert response.status_code == 400
+    assert "Failed to validate authors" in response.reason_phrase
 
 
-def test_publishing_invalid_ror_id():
+def test_publishing_invalid_ror_id(api_client, one_line_scan):
+    api_client.force_login(one_line_scan.creator)
     form_data = {
-        "authors_json": [
+        "surface": one_line_scan.surface.id,
+        "authors": [
             {
                 "first_name": "Alice",
                 "last_name": "Wonderland",
@@ -381,31 +391,25 @@ def test_publishing_invalid_ror_id():
             },
         ],
         "license": "cc0-1.0",
-        "agreed": True,
-        "copyright_hold": True,
     }
-    form = SurfacePublishForm(data=form_data)
-    assert not form.is_valid()
-    assert form.errors["__all__"] == [
-        "Incorrect format for ROR ID '0123456789downtherabbithole', "
-        "should start with 0 (zero), followed by 6 characters and "
-        "should end with 2 digits."
-    ]
+    response = api_client.post(reverse("publication:publish"), data=form_data)
+    assert response.status_code == 400
+    assert "Failed to validate authors" in response.reason_phrase
 
 
-def test_publishing_wrong_license(example_authors):
+def test_publishing_wrong_license(api_client, one_line_scan, example_authors):
+    api_client.force_login(one_line_scan.creator)
     form_data = {
-        "authors_json": example_authors,
-        "agreed": True,
-        "copyright_hold": True,
+        "surface": one_line_scan.surface.id,
+        "authors": example_authors,
         "license": "fantasy",
     }
-    form = SurfacePublishForm(data=form_data)
-    assert not form.is_valid()
-
-    assert form.errors["license"] == [
-        "Select a valid choice. fantasy is not one of the available choices."
-    ]
+    response = api_client.post(reverse("publication:publish"), data=form_data)
+    assert response.status_code == 400
+    assert (
+        "License 'fantasy' is not a valid choice for publication"
+        in response.reason_phrase
+    )
 
 
 @pytest.mark.django_db
