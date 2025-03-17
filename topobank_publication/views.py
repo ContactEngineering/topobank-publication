@@ -24,7 +24,11 @@ def publish(request):
     """
     data = json.loads(request.body)
 
-    surface: Surface = Surface.objects.get(pk=data["surface"])
+    try:
+        pk = data["surface"]
+    except KeyError:
+        return HttpResponseBadRequest()
+    surface: Surface = Surface.objects.get(pk=pk)
     license = data.get("license")
     authors = data.get("authors")
 
@@ -38,7 +42,9 @@ def publish(request):
 
     # NOTE: Check if the user has the required permissions to publish:
     if not surface.has_permission(request.user, "full"):
-        return HttpResponseForbidden()
+        return HttpResponseForbidden(
+            reason="User does not have permission to publish this dataset"
+        )
 
     # NOTE: Publish
     try:
@@ -52,7 +58,7 @@ def publish(request):
     except PublicationException as exc:
         msg = f"Publication failed, reason: {exc}"
         _log.error(msg)
-        return HttpResponseForbidden()
+        return HttpResponseForbidden(reason=msg)
 
 
 def go(request, short_url):
