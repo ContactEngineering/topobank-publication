@@ -3,7 +3,6 @@ import logging
 import pydantic
 from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import HttpResponse, get_object_or_404, redirect
-from django.urls import reverse
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.pagination import LimitOffsetPagination
@@ -25,9 +24,12 @@ def publish(request):
     This view is called when the user clicks "Publish".
     It checks if the provided data is valid and creates the publication.
     """
+    #
+    # Get dataset
+    #
     pk = request.data.get("surface")
     if pk is None:
-        return HttpResponseBadRequest()
+        return HttpResponseBadRequest(reason="Missing dataset id")
     surface = get_object_or_404(Surface, pk=pk)
 
     #
@@ -43,8 +45,10 @@ def publish(request):
     #
     # Check if the request is malformed
     #
-    if license is None or authors is None or surface is None:
-        return HttpResponseBadRequest()
+    if license is None:
+        return HttpResponseBadRequest(reason="Missing license")
+    if authors is None:
+        return HttpResponseBadRequest(reason="Missing authors")
 
     #
     # Check if the user has the required permissions to publish
@@ -65,7 +69,7 @@ def publish(request):
     except PublicationException as exc:
         msg = f"Publication failed, reason: {exc}"
         _log.error(msg)
-        return HttpResponseForbidden(reason=msg)
+        return HttpResponseBadRequest(reason=msg)
     except pydantic.ValidationError as exc:
         msg = f"Failed to validate authors: {exc}"
         _log.error(msg)
@@ -90,7 +94,7 @@ def go(request, short_url):
         return redirect(pub.get_api_url())
     else:
         return redirect(
-            f"{reverse('ce_ui:surface-detail')}?surface={pub.surface.pk}"
+            f"/ui/dataset-detail/{pub.surface.pk}/"
         )  # <- topobank does not know this
 
 

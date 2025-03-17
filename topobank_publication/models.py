@@ -2,7 +2,7 @@ import logging
 import math
 import os.path
 from io import BytesIO
-from typing import Literal, Union
+from typing import Literal, Optional, Union
 
 import pydantic
 from datacite import DataCiteRESTClient, schema42
@@ -13,7 +13,7 @@ from django.http.request import urljoin
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import quote
-from pydantic import constr
+from pydantic import conlist, constr
 from topobank.manager.models import Surface
 from topobank.users.models import User
 
@@ -29,22 +29,25 @@ MAX_LEN_AUTHORS_FIELD = 512
 CITATION_FORMAT_FLAVORS = ["html", "ris", "bibtex", "biblatex"]
 DEFAULT_KEYWORDS = ["surface", "topography"]
 
+_ror_regex = r"^0[a-z|0-9]{6}[0-9]{2}$"
+_orcid_regex = r"^(\d{4}-){3}\d{3}(\d|X)$"
+
 
 class Affiliation(pydantic.BaseModel):
     name: str
     # See: https://ror.org/
-    ror_id: Union[Literal[""], constr(pattern=r"^0[a-z|0-9]{6}[0-9]{2}$")]  # noqa: F722
+    ror_id: Optional[Union[Literal[""], constr(pattern=_ror_regex)]] = None
 
 
 class Author(pydantic.BaseModel):
     first_name: str
     last_name: str
     # See: https://orcid.org/
-    orcid_id: Union[Literal[""], constr(pattern=r"^\d{4}-\d{4}-\d{4}-\d{4}$")]  # noqa: F722
+    orcid_id: Optional[Union[Literal[""], constr(pattern=_orcid_regex)]] = None
     affiliations: list[Affiliation]
 
 
-Authors = pydantic.RootModel[list[Author]]
+Authors = pydantic.RootModel[conlist(Author, min_length=1)]
 
 
 class Publication(models.Model):
@@ -508,7 +511,7 @@ class Publication(models.Model):
         _log.info("Done.")
 
     @staticmethod
-    def publish(surface: Surface, license: str, publisher: User, authors: dict):
+    def publish(surface: Surface, license: str, publisher: User, authors: list[dict]):
         """
         Publish surface.
 
@@ -588,6 +591,15 @@ class Publication(models.Model):
                 raise NewPublicationTooFastException(
                     latest_publication, math.ceil(min_seconds - delta_secs)
                 )
+
+        #
+        # Validate license
+        #
+        license = license.lower()
+        if license not in [x for x, y in Publication.LICENSE_CHOICES]:
+            raise PublicationException(
+                f"License '{license}' is not a valid choice for publication."
+            )
 
         #
         # Validate authors

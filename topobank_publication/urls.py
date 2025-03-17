@@ -5,15 +5,15 @@ from topobank_publication import views
 
 router = DefaultRouter()
 router.register(
-    r"api/publication", views.PublicationViewSet, basename="publication-api"
+    r"publication", views.PublicationViewSet, basename="publication-api"
 )
 
 urlpatterns = router.urls
 
 app_name = "topobank_publication"
-urlprefix = "publication/"
+urlprefix = "go/"
 urlpatterns += [
     path("publish/", view=views.publish, name="publish"),
     # FIXME: This url has to be absolute
-    path("go/<str:short_url>/", view=views.go, name="go"),
+    path("<str:short_url>/", view=views.go, name="go"),
 ]

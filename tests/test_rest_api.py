@@ -2,7 +2,15 @@ import pytest
 from django.shortcuts import reverse
 from topobank.manager.models import Surface, Topography
 
-from ..models import Publication
+from topobank_publication.models import Publication
+
+# Example user
+bob = dict(
+    first_name="Bob",
+    last_name="Doe",
+    orcid_id="1234-4567-8901-2345",
+    affiliations=[dict(name="UofA", ror_id="04dkp9463")],
+)
 
 
 @pytest.mark.django_db
@@ -13,7 +21,7 @@ def test_delete_surface_routes(
     surface3 = topo3.surface
 
     # Delete of a published surface should always fail
-    pub = Publication.publish(surface3, "cc0", surface3.creator, "Bob")
+    pub = Publication.publish(surface3, "cc0-1.0", surface3.creator, [bob])
     assert Surface.objects.count() == 4
     response = api_client.delete(
         reverse("manager:surface-api-detail", kwargs=dict(pk=pub.surface.id))
@@ -43,7 +51,7 @@ def test_patch_topography_routes(api_client, two_users, handle_usage_statistics)
     new_name = "My third new name"
 
     # Patch of a published surface should always fail
-    pub = Publication.publish(topo3.surface, "cc0", topo3.surface.creator, "Bob")
+    pub = Publication.publish(topo3.surface, "cc0-1.0", topo3.surface.creator, [bob])
     (topo_pub,) = pub.surface.topography_set.all()
     assert Topography.objects.count() == 4
     response = api_client.patch(

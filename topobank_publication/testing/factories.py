@@ -8,7 +8,7 @@ import factory
 import short_url
 from topobank.testing.factories import SurfaceFactory, UserFactory
 
-from ..models import Publication
+from topobank_publication.models import Publication
 
 
 class PublicationFactory(factory.django.DjangoModelFactory):
