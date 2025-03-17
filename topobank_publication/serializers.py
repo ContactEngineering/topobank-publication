@@ -58,6 +58,6 @@ class PublicationSerializer(serializers.HyperlinkedModelSerializer):
     def get_download_url(self, obj):
         return reverse(
             "manager:surface-download",
-            kwargs={"surface_id": obj.surface.id},
+            kwargs={"surface_ids": str(obj.surface.id)},
             request=self.context["request"],
         )
