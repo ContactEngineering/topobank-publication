@@ -5,6 +5,7 @@ from django.shortcuts import HttpResponse, redirect
 from django.urls import reverse
 from django.utils.html import json
 from rest_framework import mixins, viewsets
+from rest_framework.pagination import LimitOffsetPagination
 from topobank.manager.models import Surface
 from topobank.usage_stats.utils import increase_statistics_by_date_and_object
 from trackstats.models import Metric, Period
@@ -80,8 +81,7 @@ class PublicationViewSet(
     mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
 ):
     serializer_class = PublicationSerializer
-
-    # FIXME! This view needs pagination
+    pagination_class = LimitOffsetPagination
 
     def get_queryset(self):
         q = Publication.objects.all()
