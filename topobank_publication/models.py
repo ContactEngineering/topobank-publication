@@ -2,7 +2,9 @@ import logging
 import math
 import os.path
 from io import BytesIO
+from typing import Literal, Union
 
+import pydantic
 from datacite import DataCiteRESTClient, schema42
 from datacite.errors import DataCiteError, HttpError
 from django.conf import settings
@@ -11,18 +13,14 @@ from django.http.request import urljoin
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import quote
+from pydantic import constr
 from topobank.manager.models import Surface
 from topobank.users.models import User
 
-from .utils import (
-    AlreadyPublishedException,
-    DOICreationException,
-    NewPublicationTooFastException,
-    PublicationException,
-    PublicationsDisabledException,
-    UnknownCitationFormat,
-    set_publication_permissions,
-)
+from .utils import (AlreadyPublishedException, DOICreationException,
+                    NewPublicationTooFastException, PublicationException,
+                    PublicationsDisabledException, UnknownCitationFormat,
+                    set_publication_permissions)
 
 _log = logging.getLogger(__name__)
 
@@ -30,6 +28,23 @@ MAX_LEN_AUTHORS_FIELD = 512
 
 CITATION_FORMAT_FLAVORS = ["html", "ris", "bibtex", "biblatex"]
 DEFAULT_KEYWORDS = ["surface", "topography"]
+
+
+class Affiliation(pydantic.BaseModel):
+    name: str
+    # See: https://ror.org/
+    ror_id: Union[Literal[""], constr(pattern=r"^0[a-z|0-9]{6}[0-9]{2}$")]  # noqa: F722
+
+
+class Author(pydantic.BaseModel):
+    first_name: str
+    last_name: str
+    # See: https://orcid.org/
+    orcid_id: Union[Literal[""], constr(pattern=r"^\d{4}-\d{4}-\d{4}-\d{4}$")]  # noqa: F722
+    affiliations: list[Affiliation]
+
+
+Authors = pydantic.RootModel[list[Author]]
 
 
 class Publication(models.Model):
@@ -493,7 +508,7 @@ class Publication(models.Model):
         _log.info("Done.")
 
     @staticmethod
-    def publish(surface, license, publisher, authors):
+    def publish(surface: Surface, license: str, publisher: User, authors: dict):
         """
         Publish surface.
 
@@ -553,11 +568,15 @@ class Publication(models.Model):
         if surface.is_published:
             raise AlreadyPublishedException()
 
+        #
+        # Get latest publication (if it exists)
+        #
         latest_publication = (
             Publication.objects.filter(original_surface=surface)
             .order_by("version")
             .last()
         )
+
         #
         # We limit the publication rate
         #
@@ -569,6 +588,11 @@ class Publication(models.Model):
                 raise NewPublicationTooFastException(
                     latest_publication, math.ceil(min_seconds - delta_secs)
                 )
+
+        #
+        # Validate authors
+        #
+        authors = Authors(authors)
 
         #
         # Create a copy of this surface
@@ -600,7 +624,7 @@ class Publication(models.Model):
         pub = Publication.objects.create(
             surface=copy,
             original_surface=surface,
-            authors_json=authors,
+            authors_json=authors.model_dump(),
             license=license,
             version=version,
             publisher=publisher,

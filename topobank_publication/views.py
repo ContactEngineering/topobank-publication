@@ -1,11 +1,13 @@
 import logging
 
+import pydantic
 from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden
-from django.shortcuts import HttpResponse, redirect
+from django.shortcuts import HttpResponse, get_object_or_404, redirect
 from django.urls import reverse
-from django.utils.html import json
 from rest_framework import mixins, viewsets
+from rest_framework.decorators import api_view
 from rest_framework.pagination import LimitOffsetPagination
+from rest_framework.response import Response
 from topobank.manager.models import Surface
 from topobank.usage_stats.utils import increase_statistics_by_date_and_object
 from trackstats.models import Metric, Period
@@ -17,48 +19,57 @@ from .utils import NewPublicationTooFastException, PublicationException
 _log = logging.getLogger(__name__)
 
 
+@api_view(["POST"])
 def publish(request):
     """
     This view is called when the user clicks "Publish".
     It checks if the provided data is valid and creates the publication.
     """
-    data = json.loads(request.body)
-
-    try:
-        pk = data["surface"]
-    except KeyError:
+    pk = request.data.get("surface")
+    if pk is None:
         return HttpResponseBadRequest()
-    surface: Surface = Surface.objects.get(pk=pk)
-    license = data.get("license")
-    authors = data.get("authors")
+    surface = get_object_or_404(Surface, pk=pk)
 
-    # TODO: Validation:
-    # - max authors
-    # - authors json in general...
+    #
+    # Get license
+    #
+    license = request.data.get("license")
 
-    # NOTE: Check if the request is malformed
+    #
+    # Get authors
+    #
+    authors = request.data.get("authors")
+
+    #
+    # Check if the request is malformed
+    #
     if license is None or authors is None or surface is None:
         return HttpResponseBadRequest()
 
-    # NOTE: Check if the user has the required permissions to publish:
+    #
+    # Check if the user has the required permissions to publish
+    #
     if not surface.has_permission(request.user, "full"):
         return HttpResponseForbidden(
             reason="User does not have permission to publish this dataset"
         )
 
-    # NOTE: Publish
+    #
+    # Publish
+    #
     try:
         publication = Publication.publish(surface, license, request.user, authors)
-        return HttpResponse(content=f"{publication.surface.id}".encode())
+        return Response({"dataset_id": publication.surface.id})
     except NewPublicationTooFastException as rate_limit_exception:
-        # TODO: content as bytes
-        return HttpResponse(
-            status=429, content=f"{rate_limit_exception._wait_seconds}".encode()
-        )
+        return HttpResponse(status=429, reason=f"{rate_limit_exception._wait_seconds}")
     except PublicationException as exc:
         msg = f"Publication failed, reason: {exc}"
         _log.error(msg)
         return HttpResponseForbidden(reason=msg)
+    except pydantic.ValidationError as exc:
+        msg = f"Failed to validate authors: {exc}"
+        _log.error(msg)
+        return HttpResponseBadRequest(reason=msg)
 
 
 def go(request, short_url):
