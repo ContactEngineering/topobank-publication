@@ -1,5 +1,10 @@
 # Changelog for plugin *topobank-publication*
 
+## 1.8.1 (2025-04-02)
+
+- MAINT: Default to simple router in production
+- MAINT: Removed bleach dependency
+
 ## 1.8.0 (2025-03-17)
 
 - ENH: New publication flow
