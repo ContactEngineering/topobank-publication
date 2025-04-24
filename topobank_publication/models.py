@@ -8,7 +8,7 @@ import pydantic
 from datacite import DataCiteRESTClient, schema42
 from datacite.errors import DataCiteError, HttpError
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 from django.http.request import urljoin
 from django.urls import reverse
 from django.utils import timezone
@@ -54,6 +54,7 @@ class Publication(models.Model):
     """Represents a publication of a digital surface twin."""
 
     class Meta:
+        unique_together = ("original_surface", "version")
         db_table = (
             "publication_publication"  # This used to be part of core topobank app
         )
@@ -606,42 +607,43 @@ class Publication(models.Model):
         #
         authors = Authors(authors)
 
-        #
-        # Create a copy of this surface
-        #
-        copy = surface.deepcopy()
+        with transaction.atomic():
+            #
+            # Create a copy of this surface
+            #
+            copy = surface.deepcopy()
 
-        try:
-            set_publication_permissions(copy)
-        except PublicationException:
-            # see GH 704
-            _log.error(
-                f"Could not set permission for copied surface to publish ... "
-                f"deleting copy (surface {copy.pk}) of surface {surface.pk}."
+            try:
+                set_publication_permissions(copy)
+            except PublicationException:
+                # see GH 704
+                _log.error(
+                    f"Could not set permission for copied surface to publish ... "
+                    f"deleting copy (surface {copy.pk}) of surface {surface.pk}."
+                )
+                copy.delete()
+                raise
+
+            #
+            # Create publication
+            #
+            if latest_publication:
+                version = latest_publication.version + 1
+            else:
+                version = 1
+
+            #
+            # Save local reference for the publication
+            #
+            pub = Publication.objects.create(
+                surface=copy,
+                original_surface=surface,
+                authors_json=authors.model_dump(),
+                license=license,
+                version=version,
+                publisher=publisher,
+                publisher_orcid_id=publisher.orcid_id,
             )
-            copy.delete()
-            raise
-
-        #
-        # Create publication
-        #
-        if latest_publication:
-            version = latest_publication.version + 1
-        else:
-            version = 1
-
-        #
-        # Save local reference for the publication
-        #
-        pub = Publication.objects.create(
-            surface=copy,
-            original_surface=surface,
-            authors_json=authors.model_dump(),
-            license=license,
-            version=version,
-            publisher=publisher,
-            publisher_orcid_id=publisher.orcid_id,
-        )
 
         #
         # Try to create DOI - if this doesn't work, rollback

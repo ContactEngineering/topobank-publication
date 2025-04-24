@@ -1,5 +1,9 @@
 # Changelog for plugin *topobank-publication*
 
+## 1.8.2 (2025-04-24)
+
+- BUG: Prevent duplicate publications
+
 ## 1.8.1 (2025-04-02)
 
 - MAINT: Default to simple router in production
