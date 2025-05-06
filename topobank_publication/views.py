@@ -11,11 +11,29 @@ from topobank.manager.models import Surface
 from topobank.usage_stats.utils import increase_statistics_by_date_and_object
 from trackstats.models import Metric, Period
 
-from .models import Publication
-from .serializers import PublicationSerializer
+from .models import Publication, PublicationCollection
+from .serializers import PublicationCollectionSerializer, PublicationSerializer
 from .utils import NewPublicationTooFastException, PublicationException
 
 _log = logging.getLogger(__name__)
+
+
+@api_view(["POST"])
+def publish_collection(request):
+    pks = request.data.get("publication")
+    title = request.data.get("title")
+    description = request.data.get("description", "")
+    if pks is None:
+        return HttpResponseBadRequest(reason="Missing publication id's")
+    if title is None:
+        return HttpResponseBadRequest(reason="Missing title")
+    publications = [get_object_or_404(Publication, pk=pk) for pk in pks]
+
+    collection = PublicationCollection.publish(
+        publications, title, description, request.user
+    )
+    # TODO: Handle expections that occur during publish
+    return Response({"collection_id": collection.id})
 
 
 @api_view(["POST"])
@@ -76,6 +94,17 @@ def publish(request):
         return HttpResponseBadRequest(reason=msg)
 
 
+def go_colleciton(request, short_url):
+    """Visit a publication collection by short url."""
+    try:
+        collection: PublicationCollection = PublicationCollection.objects.get(
+            short_url=short_url
+        )
+    except PublicationCollection.DoesNotExist:
+        raise Http404()
+    return redirect(f"/ui/dataset-collection/{collection.id}")
+
+
 def go(request, short_url):
     """Visit a published surface by short url."""
     try:
@@ -124,3 +153,13 @@ class PublicationViewSet(
         if order_by_version:
             q = q.order_by("-version")
         return q
+
+
+class PublicationCollectionViewSet(
+    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
+):
+    serializer_class = PublicationCollectionSerializer
+    pagination_class = LimitOffsetPagination
+
+    def get_queryset(self):
+        return PublicationCollection.objects.all()
