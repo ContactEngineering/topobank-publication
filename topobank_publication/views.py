@@ -30,6 +30,7 @@ def publish_collection(request):
     if title is None:
         return HttpResponseBadRequest(reason="Missing title")
     publications = [get_object_or_404(Publication, pk=pk) for pk in pks]
+    # TODO: Check for duplications
     try:
         collection = PublicationCollection.publish(
             publications, title, description, request.user
