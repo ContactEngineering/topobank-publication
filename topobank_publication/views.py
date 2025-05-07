@@ -25,13 +25,20 @@ def publish_collection(request):
     description = request.data.get("description", "")
     if pks is None:
         return HttpResponseBadRequest(reason="Missing publication id's")
+    if len(pks) < 2:
+        return HttpResponseBadRequest(reason="Not 2 or more id's provided")
     if title is None:
         return HttpResponseBadRequest(reason="Missing title")
     publications = [get_object_or_404(Publication, pk=pk) for pk in pks]
+    try:
+        collection = PublicationCollection.publish(
+            publications, title, description, request.user
+        )
+    except PublicationException as exc:
+        msg = f"Publication failed, reason: {exc}"
+        _log.error(msg)
+        return HttpResponseBadRequest(reason=msg)
 
-    collection = PublicationCollection.publish(
-        publications, title, description, request.user
-    )
     # TODO: Handle expections that occur during publish
     return Response({"collection_id": collection.id})
 

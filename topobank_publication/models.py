@@ -931,7 +931,7 @@ class PublicationCollection(models.Model):
                 pub.create_doi()
             except DOICreationException as exc:
                 _log.error("DOI creation failed, reason: %s", exc)
-                _log.warning(f"Cannot create publication collection with DOI")
+                _log.warning("Cannot create DOI for publication collection")
                 pub.delete()
                 raise PublicationException(f"Cannot create DOI, reason: {exc}") from exc
         else:
