@@ -1,5 +1,9 @@
 # Changelog for plugin *topobank-publication*
 
+# Unreleased
+
+- ENH: Publication collections
+
 ## 1.8.2 (2025-04-24)
 
 - BUG: Prevent duplicate publications
