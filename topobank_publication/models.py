@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import math
 import os.path
@@ -704,6 +705,7 @@ class PublicationCollection(models.Model):
     doi_state = models.CharField(
         max_length=10, choices=Publication.DOI_STATE_CHOICES, default=""
     )
+    unique_hash = models.CharField(max_length=64, unique=True, editable=False)
 
     @property
     def has_doi(self):
@@ -918,11 +920,25 @@ class PublicationCollection(models.Model):
         if not settings.PUBLICATION_ENABLED:
             raise PublicationsDisabledException()
 
+        """Generate a unique hash based on related model IDs."""
+        ids = sorted([pub.id for pub in publications])
+        hash_str = ",".join(
+            map(str, ids)
+        )  # Create a deterministic string representation
+
+        print(f"before save: {hash_str}")
+        unique_hash = hashlib.sha256(hash_str.encode()).hexdigest()
+        print(PublicationCollection.objects.filter(unique_hash=unique_hash))
+        print(unique_hash)
+        if PublicationCollection.objects.filter(unique_hash=unique_hash).exists():
+            raise AlreadyPublishedException()
+
         pub = PublicationCollection.objects.create(
             title=title,
             description=description,
             publisher=publisher,
             publisher_orcid_id=publisher.orcid_id,
+            unique_hash=unique_hash,
         )
         pub.publications.set(publications)
 
