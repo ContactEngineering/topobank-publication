@@ -1,6 +1,7 @@
 import logging
 
 import pydantic
+from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import HttpResponse, get_object_or_404, redirect
 from rest_framework import mixins, viewsets
@@ -23,6 +24,7 @@ _log = logging.getLogger(__name__)
 
 
 @api_view(["POST"])
+@login_required
 def publish_collection(request):
     pks = request.data.get("publication")
     title = request.data.get("title")
