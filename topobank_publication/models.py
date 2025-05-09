@@ -756,7 +756,7 @@ class PublicationCollection(models.Model):
             Is raised if DOI creation fails for some reason. The error message gives more details.
         """
 
-        doi_name: str = f"{settings.PUBLICATION_DOI_PREFIX}/ce-{self.short_url}"
+        doi_name: str = f"{settings.PUBLICATION_DOI_PREFIX}/ce-coll-{self.short_url}"
         license_infos = settings.CC_LICENSE_INFOS["cc0-1.0"]
 
         data = {
