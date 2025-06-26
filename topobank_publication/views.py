@@ -112,7 +112,7 @@ def publish(request):
         return HttpResponseBadRequest(reason=msg)
 
 
-def go_colleciton(request, short_url):
+def go_collection(request, short_url):
     """Visit a publication collection by short url."""
     try:
         collection: PublicationCollection = PublicationCollection.objects.get(

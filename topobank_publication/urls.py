@@ -23,6 +23,6 @@ urlpatterns += [
         view=views.publish_collection,
         name="publish-collection",
     ),
+    path("collection/<str:short_url>/", view=views.go_collection, name="go-collection"),
     path("<str:short_url>/", view=views.go, name="go"),
-    path("collection/<str:short_url>/", view=views.go_colleciton, name="go-colleciton"),
 ]
