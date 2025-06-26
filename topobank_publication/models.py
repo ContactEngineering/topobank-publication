@@ -705,6 +705,7 @@ class PublicationCollection(models.Model):
     doi_state = models.CharField(
         max_length=10, choices=Publication.DOI_STATE_CHOICES, default=""
     )
+    datacite_json = models.JSONField(default=dict)
     unique_hash = models.CharField(max_length=64, unique=True, editable=False)
 
     @property
@@ -883,7 +884,12 @@ class PublicationCollection(models.Model):
             _log.error(msg)
             raise DOICreationException(msg) from exc
 
-        pass
+        _log.info("Saving additional data to publication_collection record..")
+        self.doi_name = doi_name
+        self.doi_state = requested_doi_state
+        self.datacite_json = data
+        self.save()
+        _log.info(f"Done creating DOI for publication_collection '{self.short_url}'.")
 
     @staticmethod
     def publish(
@@ -926,12 +932,9 @@ class PublicationCollection(models.Model):
             map(str, ids)
         )  # Create a deterministic string representation
 
-        print(f"before save: {hash_str}")
         unique_hash = hashlib.sha256(hash_str.encode()).hexdigest()
-        print(PublicationCollection.objects.filter(unique_hash=unique_hash))
-        print(unique_hash)
-        if PublicationCollection.objects.filter(unique_hash=unique_hash).exists():
-            raise AlreadyPublishedException()
+        # if PublicationCollection.objects.filter(unique_hash=unique_hash).exists():
+        #     raise AlreadyPublishedException()
 
         pub = PublicationCollection.objects.create(
             title=title,

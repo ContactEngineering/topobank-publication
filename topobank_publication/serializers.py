@@ -69,6 +69,7 @@ class PublicationCollectionSerializer(serializers.HyperlinkedModelSerializer):
         fields = [
             "id",
             "url",
+            "doi_name",
             "title",
             "description",
             "short_url",
