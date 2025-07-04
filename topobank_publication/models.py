@@ -933,8 +933,8 @@ class PublicationCollection(models.Model):
         )  # Create a deterministic string representation
 
         unique_hash = hashlib.sha256(hash_str.encode()).hexdigest()
-        # if PublicationCollection.objects.filter(unique_hash=unique_hash).exists():
-        #     raise AlreadyPublishedException()
+        if PublicationCollection.objects.filter(unique_hash=unique_hash).exists():
+            raise AlreadyPublishedException()
 
         pub = PublicationCollection.objects.create(
             title=title,
