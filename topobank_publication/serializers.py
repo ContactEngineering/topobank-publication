@@ -2,7 +2,7 @@ from rest_framework import serializers
 from rest_framework.reverse import reverse
 from topobank.users.serializers import UserSerializer
 
-from .models import CITATION_FORMAT_FLAVORS, Publication
+from .models import CITATION_FORMAT_FLAVORS, Publication, PublicationCollection
 
 
 class PublicationSerializer(serializers.HyperlinkedModelSerializer):
@@ -61,3 +61,26 @@ class PublicationSerializer(serializers.HyperlinkedModelSerializer):
             kwargs={"surface_ids": str(obj.surface.id)},
             request=self.context["request"],
         )
+
+
+class PublicationCollectionSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = PublicationCollection
+        fields = [
+            "id",
+            "url",
+            "doi_name",
+            "title",
+            "description",
+            "short_url",
+            "publisher",
+            "publications",
+        ]
+
+    url = serializers.HyperlinkedIdentityField(
+        view_name="publication:publication-collection-api-detail", read_only=True
+    )
+    publisher = UserSerializer(read_only=True)
+    publications = serializers.HyperlinkedRelatedField(
+        view_name="publication:publication-api-detail", many=True, read_only=True
+    )

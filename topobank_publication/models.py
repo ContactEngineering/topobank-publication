@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import math
 import os.path
@@ -5,7 +6,7 @@ from io import BytesIO
 from typing import Literal, Optional, Union
 
 import pydantic
-from datacite import DataCiteRESTClient, schema42
+from datacite import DataCiteRESTClient, schema42, schema45
 from datacite.errors import DataCiteError, HttpError
 from django.conf import settings
 from django.db import models, transaction
@@ -17,10 +18,15 @@ from pydantic import conlist, constr
 from topobank.manager.models import Surface
 from topobank.users.models import User
 
-from .utils import (AlreadyPublishedException, DOICreationException,
-                    NewPublicationTooFastException, PublicationException,
-                    PublicationsDisabledException, UnknownCitationFormat,
-                    set_publication_permissions)
+from .utils import (
+    AlreadyPublishedException,
+    DOICreationException,
+    NewPublicationTooFastException,
+    PublicationException,
+    PublicationsDisabledException,
+    UnknownCitationFormat,
+    set_publication_permissions,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -455,32 +461,32 @@ class Publication(models.Model):
             )
             rest_client = DataCiteRESTClient(**client_kwargs)
             pub_full_url = self.get_full_url()
-
-            if requested_doi_state == Publication.DOI_STATE_DRAFT:
-                _log.info(
-                    f"Creating draft DOI '{doi_name}' for publication '{self.short_url}' without URL link..."
-                )
-                rest_client.draft_doi(data, doi=doi_name)
-                _log.info(
-                    f"Linking draft DOI '{doi_name}' for publication '{self.short_url}' to URL {pub_full_url}..."
-                )
-                rest_client.update_url(doi=doi_name, url=pub_full_url)
-            elif requested_doi_state == Publication.DOI_STATE_REGISTERED:
-                _log.info(
-                    f"Creating registered DOI '{doi_name}' for publication '{self.short_url}' "
-                    f"linked to {pub_full_url}..."
-                )
-                rest_client.private_doi(data, url=pub_full_url, doi=doi_name)
-            elif requested_doi_state == Publication.DOI_STATE_FINDABLE:
-                _log.info(
-                    f"Creating findable DOI '{doi_name}' for publication '{self.short_url}' "
-                    f"linked to {pub_full_url}..."
-                )
-                rest_client.public_doi(data, url=pub_full_url, doi=doi_name)
-            else:
-                raise DataCiteError(
-                    f"Requested DOI state {requested_doi_state} is unknown."
-                )
+            match requested_doi_state:
+                case Publication.DOI_STATE_DRAFT:
+                    _log.info(
+                        f"Creating draft DOI '{doi_name}' for publication '{self.short_url}' without URL link..."
+                    )
+                    rest_client.draft_doi(data, doi=doi_name)
+                    _log.info(
+                        f"Linking draft DOI '{doi_name}' for publication '{self.short_url}' to URL {pub_full_url}..."
+                    )
+                    rest_client.update_url(doi=doi_name, url=pub_full_url)
+                case Publication.DOI_STATE_REGISTERED:
+                    _log.info(
+                        f"Creating registered DOI '{doi_name}' for publication '{self.short_url}' "
+                        f"linked to {pub_full_url}..."
+                    )
+                    rest_client.private_doi(data, url=pub_full_url, doi=doi_name)
+                case Publication.DOI_STATE_FINDABLE:
+                    _log.info(
+                        f"Creating findable DOI '{doi_name}' for publication '{self.short_url}' "
+                        f"linked to {pub_full_url}..."
+                    )
+                    rest_client.public_doi(data, url=pub_full_url, doi=doi_name)
+                case _:
+                    raise DataCiteError(
+                        f"Requested DOI state {requested_doi_state} is unknown."
+                    )
             _log.info("Done.")
         except (DataCiteError, HttpError) as exc:
             msg = f"DOI creation failed, reason: {exc}"
@@ -678,3 +684,278 @@ class Publication(models.Model):
         return (
             f"{os.path.dirname(__file__)}/static/licenses/{self.license}-legalcode.txt"
         )
+
+
+class PublicationCollection(models.Model):
+    title = models.CharField(max_length=80)
+    description = models.TextField(blank=True)
+    short_url = models.CharField(max_length=10, unique=True, null=True)
+    publications = models.ManyToManyField(
+        Publication, related_name="publication_collection"
+    )
+    publisher = models.ForeignKey(User, on_delete=models.PROTECT)
+    publisher_orcid_id = models.CharField(
+        max_length=19, default=""
+    )  # 16 digits including 3 dashes
+    datetime = models.DateTimeField(auto_now_add=True)
+    doi_name = models.CharField(
+        max_length=50, default=""
+    )  # part of DOI which starts with 10.
+    # if empty, the DOI has not been generated yet
+    doi_state = models.CharField(
+        max_length=10, choices=Publication.DOI_STATE_CHOICES, default=""
+    )
+    datacite_json = models.JSONField(default=dict)
+    unique_hash = models.CharField(max_length=64, unique=True, editable=False)
+
+    @property
+    def has_doi(self):
+        """Returns True, if this publication already has a doi."""
+        return self.doi_name != ""
+
+    @property
+    def doi_url(self):
+        """Return DOI as URL string or return None if DOI hasn't been generated yet."""
+        # This depends on in which state the DOI -
+        # this is useful in development of DOIs are in "draft" mode
+        if self.doi_name == "":
+            return None
+        elif self.doi_state == Publication.DOI_STATE_DRAFT:
+            return urljoin(
+                "https://doi.test.datacite.org/dois/", quote(self.doi_name, safe="")
+            )
+        else:
+            return f"https://doi.org/{self.doi_name}"  # here we keep the slash
+
+    def get_full_url(self):
+        """Return URL which should be used to permanently point to this publication.
+
+        If the publication has a DOI, this will be it's URL, otherwise
+        it's a URL pointing to this web app.
+        """
+        if self.has_doi:
+            return self.doi_url
+        else:
+            return urljoin(
+                settings.PUBLICATION_URL_PREFIX, f"collection/{self.short_url}"
+            )
+
+    def create_doi(self, force_draft=False):
+        """Create DOI at datacite using available information.
+
+        Parameters
+        ----------
+        force_draft: bool
+            If True, the DOI state will be 'draft' and can be deleted later.
+            If False, the system settings will be used, which could be either
+            'draft', 'registered', or 'findable'. The later two cannot be
+            deleted.
+
+        Raises
+        ------
+        DOICreationException
+            Is raised if DOI creation fails for some reason. The error message gives more details.
+        """
+
+        doi_name: str = f"{settings.PUBLICATION_DOI_PREFIX}/ce-coll-{self.short_url}"
+        license_infos = settings.CC_LICENSE_INFOS["cc0-1.0"]
+
+        data = {
+            #
+            # Mandatory
+            # ---------
+            #
+            # Identifier
+            "doi": doi_name,
+            # Creator
+            "creators": [
+                {
+                    "name": f"{self.publisher.last_name}, {self.publisher.first_name}",
+                    "nameType": "Personal",
+                    "givenName": self.publisher.first_name,
+                    "familyName": self.publisher.last_name,
+                    "nameIdentifiers": [
+                        {
+                            "schemeUri": "https://orcid.org",
+                            "nameIdentifier": f"https://orcid.org/{self.publisher.orcid_id}",
+                            "nameIdentifierScheme": "ORCID",
+                        }
+                    ],
+                }
+            ],
+            # Title
+            "titles": [
+                {
+                    "title": self.title,
+                }
+            ],
+            # Publisher
+            "publisher": {"name": "contact.engineering"},
+            # PublicationYear
+            "publicationYear": str(self.datetime.year),
+            # ResourceType
+            "types": {"resourceType": "Dataset", "resourceTypeGeneral": "Dataset"},
+            #
+            # Recommended or Optional
+            # -----------------------
+            #
+            # Subject
+            "subjects": [
+                {
+                    "subject": "FOS: Materials engineering",
+                    "valueUri": "http://www.oecd.org/science/inno/38235147.pdf",
+                    "schemeUri": "http://www.oecd.org/science/inno",
+                    "subjectScheme": "Fields of Science and Technology (FOS)",
+                },
+            ],
+            # Date
+            "dates": [
+                {
+                    "dateType": "Submitted",
+                    "date": self.datetime.isoformat(),
+                }  # included in result JSON
+            ],
+            # Rights
+            "rightsList": [
+                {
+                    "rights": license_infos["title"],
+                    "rightsUri": license_infos["legal_code_url"],
+                    "schemeUri": "https://spdx.org/licenses/",
+                    "rightsIdentifier": license_infos["spdx_identifier"],
+                    "rightsIdentifierScheme": "SPDX",
+                    "lang": "en",
+                }
+            ],
+            "schemaVersion": "http://datacite.org/schema/kernel-4",
+        }
+
+        if not schema45.validate(data):
+            raise DOICreationException(
+                "Given data does not validate according to DataCite Schema 4.5!"
+            )
+
+        client_kwargs = dict(
+            username=settings.DATACITE_USERNAME,
+            password=settings.DATACITE_PASSWORD,
+            prefix=settings.PUBLICATION_DOI_PREFIX,
+            url=settings.DATACITE_API_URL,
+        )
+        requested_doi_state = (
+            Publication.DOI_STATE_DRAFT
+            if force_draft
+            else settings.PUBLICATION_DOI_STATE
+        )
+        try:
+            _log.info(
+                f"Connecting to DataCite REST API at {settings.DATACITE_API_URL} for DOI "
+                f"prefix {settings.PUBLICATION_DOI_PREFIX}..."
+            )
+            rest_client = DataCiteRESTClient(**client_kwargs)
+            pub_full_url = self.get_full_url()
+            match requested_doi_state:
+                case Publication.DOI_STATE_DRAFT:
+                    _log.info(
+                        f"Creating draft DOI '{doi_name}' for publication '{self.short_url}' without URL link..."
+                    )
+                    rest_client.draft_doi(data, doi=doi_name)
+                    _log.info(
+                        f"Linking draft DOI '{doi_name}' for publication '{self.short_url}' to URL {pub_full_url}..."
+                    )
+                    rest_client.update_url(doi=doi_name, url=pub_full_url)
+                case Publication.DOI_STATE_REGISTERED:
+                    _log.info(
+                        f"Creating registered DOI '{doi_name}' for publication '{self.short_url}' "
+                        f"linked to {pub_full_url}..."
+                    )
+                    rest_client.private_doi(data, url=pub_full_url, doi=doi_name)
+                case Publication.DOI_STATE_FINDABLE:
+                    _log.info(
+                        f"Creating findable DOI '{doi_name}' for publication '{self.short_url}' "
+                        f"linked to {pub_full_url}..."
+                    )
+                    rest_client.public_doi(data, url=pub_full_url, doi=doi_name)
+                case _:
+                    raise DataCiteError(
+                        f"Requested DOI state {requested_doi_state} is unknown."
+                    )
+            _log.info("Done.")
+        except (DataCiteError, HttpError) as exc:
+            msg = f"DOI creation failed, reason: {exc}"
+            _log.error(msg)
+            raise DOICreationException(msg) from exc
+
+        _log.info("Saving additional data to publication_collection record..")
+        self.doi_name = doi_name
+        self.doi_state = requested_doi_state
+        self.datacite_json = data
+        self.save()
+        _log.info(f"Done creating DOI for publication_collection '{self.short_url}'.")
+
+    @staticmethod
+    def publish(
+        publications: list[Publication], title: str, description: str, publisher: User
+    ):
+        """
+        Publish collection.
+
+        An imutable collection of already published.
+
+        Parameters
+        ----------
+        publications : list[publication]
+            The publication to be bundled
+        publisher : User
+            The user who is publishing the surface.
+
+        Returns
+        -------
+        PublicationCollection
+            The created publication collection object.
+
+        Raises
+        ------
+        PublicationsDisabledException
+            If publications are disabled in the settings.
+        AlreadyPublishedException
+            If the publictions is already published.
+        NewPublicationTooFastException
+            If a new publication is attempted too soon after the last one.
+        PublicationException
+            If there is an error during the publication process.
+        """
+        if not settings.PUBLICATION_ENABLED:
+            raise PublicationsDisabledException()
+
+        """Generate a unique hash based on related model IDs."""
+        ids = sorted([pub.id for pub in publications])
+        hash_str = ",".join(
+            map(str, ids)
+        )  # Create a deterministic string representation
+
+        unique_hash = hashlib.sha256(hash_str.encode()).hexdigest()
+        if PublicationCollection.objects.filter(unique_hash=unique_hash).exists():
+            raise AlreadyPublishedException()
+
+        pub = PublicationCollection.objects.create(
+            title=title,
+            description=description,
+            publisher=publisher,
+            publisher_orcid_id=publisher.orcid_id,
+            unique_hash=unique_hash,
+        )
+        pub.publications.set(publications)
+
+        if settings.PUBLICATION_DOI_MANDATORY:
+            try:
+                pub.create_doi()
+            except DOICreationException as exc:
+                _log.error("DOI creation failed, reason: %s", exc)
+                _log.warning("Cannot create DOI for publication collection")
+                pub.delete()
+                raise PublicationException(f"Cannot create DOI, reason: {exc}") from exc
+        else:
+            _log.info(
+                "Skipping creation of DOI, because it is not configured as mandatory."
+            )
+
+        return pub
