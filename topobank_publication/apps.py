@@ -19,7 +19,7 @@ class PublicationPluginConfig(PluginConfig):
         restricted = False  # Accessible for all users, without permissions
 
     def ready(self):
-        from topobank.manager.serializers import SurfaceSerializer
+        from topobank.manager.v1.serializers import SurfaceSerializer
 
         # Monkey patch the new field into the serializer
         publication_field = serializers.HyperlinkedRelatedField(
