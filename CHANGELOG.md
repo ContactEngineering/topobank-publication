@@ -1,5 +1,9 @@
 # Changelog for plugin *topobank-publication*
 
+## 1.9.0 (2025-07-28)
+
+- MAINT: Serializer has been moved to v1 module in topobank
+
 ## 1.8.2 (2025-04-24)
 
 - BUG: Prevent duplicate publications
