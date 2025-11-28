@@ -1,6 +1,7 @@
 import logging
 
 import pydantic
+from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import HttpResponse, get_object_or_404, redirect
 from rest_framework import mixins, viewsets
@@ -11,11 +12,46 @@ from topobank.manager.models import Surface
 from topobank.usage_stats.utils import increase_statistics_by_date_and_object
 from trackstats.models import Metric, Period
 
-from .models import Publication
-from .serializers import PublicationSerializer
-from .utils import NewPublicationTooFastException, PublicationException
+from .models import Publication, PublicationCollection
+from .serializers import PublicationCollectionSerializer, PublicationSerializer
+from .utils import (
+    AlreadyPublishedException,
+    NewPublicationTooFastException,
+    PublicationException,
+)
 
 _log = logging.getLogger(__name__)
+
+
+@api_view(["POST"])
+@login_required
+def publish_collection(request):
+    pks = request.data.get("publication")
+    title = request.data.get("title")
+    description = request.data.get("description", "")
+    if pks is None:
+        return HttpResponseBadRequest(reason="Missing publication id's")
+    if len(pks) < 2:
+        return HttpResponseBadRequest(reason="Not 2 or more id's provided")
+    if title is None:
+        return HttpResponseBadRequest(reason="Missing title")
+    publications = [get_object_or_404(Publication, pk=pk) for pk in pks]
+    # TODO: Check for duplications
+    try:
+        collection = PublicationCollection.publish(
+            publications, title, description, request.user
+        )
+    except AlreadyPublishedException:
+        msg = f"This Collection has already been published."
+        _log.error(msg)
+        return HttpResponseBadRequest(reason=msg)
+    except PublicationException as exc:
+        msg = f"Publication failed, reason: {exc}"
+        _log.error(msg)
+        return HttpResponseBadRequest(reason=msg)
+
+    # TODO: Handle expections that occur during publish
+    return Response({"collection_id": collection.id})
 
 
 @api_view(["POST"])
@@ -78,6 +114,17 @@ def publish(request):
         return HttpResponseBadRequest(reason=msg)
 
 
+def go_collection(request, short_url):
+    """Visit a publication collection by short url."""
+    try:
+        collection: PublicationCollection = PublicationCollection.objects.get(
+            short_url=short_url
+        )
+    except PublicationCollection.DoesNotExist:
+        raise Http404()
+    return redirect(f"/ui/dataset-collection/{collection.id}")
+
+
 def go(request, short_url):
     """Visit a published surface by short url."""
     try:
@@ -126,3 +173,13 @@ class PublicationViewSet(
         if order_by_version:
             q = q.order_by("-version")
         return q
+
+
+class PublicationCollectionViewSet(
+    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
+):
+    serializer_class = PublicationCollectionSerializer
+    pagination_class = LimitOffsetPagination
+
+    def get_queryset(self):
+        return PublicationCollection.objects.all()

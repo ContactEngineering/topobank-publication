@@ -1,5 +1,9 @@
 # Changelog for plugin *topobank-publication*
 
+# Not yet released
+
+- ENH: Publication collections
+
 ## 1.9.0 (2025-07-28)
 
 - UPSTREAM: Serializer has been moved to the `v1` module in `topobank`

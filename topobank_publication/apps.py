@@ -5,8 +5,8 @@ from .version import __version__
 
 
 class PublicationPluginConfig(PluginConfig):
-    name = 'topobank_publication'
-    label = 'publication'
+    name = "topobank_publication"
+    label = "publication"
     verbose_name = "Publication"
 
     class TopobankPluginMeta:
@@ -23,10 +23,13 @@ class PublicationPluginConfig(PluginConfig):
 
         # Monkey patch the new field into the serializer
         publication_field = serializers.HyperlinkedRelatedField(
-            view_name='publication:publication-api-detail', read_only=True)
-        SurfaceSerializer.Meta.fields += ['publication']
+            view_name="publication:publication-api-detail", read_only=True
+        )
+        SurfaceSerializer.Meta.fields += ["publication"]
         SurfaceSerializer.publication = publication_field
-        SurfaceSerializer.__dict__['_declared_fields']['publication'] = publication_field
+        SurfaceSerializer.__dict__["_declared_fields"]["publication"] = (
+            publication_field
+        )
 
         # make sure the signals are registered now
         import topobank_publication.signals  # noqa: F401

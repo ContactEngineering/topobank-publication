@@ -21,9 +21,18 @@ def test_usage_of_cached_container_on_download_of_published_surface(
 
     # we don't need the correct container here, so we just return some fake data
     write_container_mock = mocker.patch(
-        "topobank.manager.export_zip.write_container_zip", autospec=True
+        "topobank.manager.views.v1.write_surface_container", autospec=True
     )
     write_container_mock.return_value = BytesIO(b"Hello Test")
+
+    def download_published():
+        """Download published surface, returns HTTPResponse"""
+        return client.get(
+            reverse(
+                "manager:surface-download", kwargs=dict(surface_ids=str(surface.id))
+            ),
+            follow=True,
+        )
 
     #
     # first download
