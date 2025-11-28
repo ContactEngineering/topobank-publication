@@ -101,7 +101,9 @@ def publish(request):
         publication = Publication.publish(surface, license, request.user, authors)
         return Response({"dataset_id": publication.surface.id})
     except NewPublicationTooFastException as rate_limit_exception:
-        return HttpResponse(status=429, reason=f"{rate_limit_exception._wait_seconds}")
+        return HttpResponse(
+            status=429, content=str.encode(f"{rate_limit_exception._wait_seconds}")
+        )
     except PublicationException as exc:
         msg = f"Publication failed, reason: {exc}"
         _log.error(msg)

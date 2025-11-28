@@ -1,8 +1,13 @@
 # Changelog for plugin *topobank-publication*
 
-# Unreleased
+# Not yet released
 
 - ENH: Publication collections
+
+## 1.9.0 (2025-07-28)
+
+- UPSTREAM: Serializer has been moved to the `v1` module in `topobank`
+- UPSTREAM: Writing container is now part of the `export_zip` module of `topobank`
 
 ## 1.8.2 (2025-04-24)
 
