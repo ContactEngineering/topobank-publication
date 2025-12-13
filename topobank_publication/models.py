@@ -6,7 +6,7 @@ from io import BytesIO
 from typing import Literal, Optional, Union
 
 import pydantic
-from datacite import DataCiteRESTClient, schema42, schema45
+from datacite import DataCiteRESTClient, schema45
 from datacite.errors import DataCiteError, HttpError
 from django.conf import settings
 from django.db import models, transaction
@@ -18,15 +18,10 @@ from pydantic import conlist, constr
 from topobank.manager.models import Surface
 from topobank.users.models import User
 
-from .utils import (
-    AlreadyPublishedException,
-    DOICreationException,
-    NewPublicationTooFastException,
-    PublicationException,
-    PublicationsDisabledException,
-    UnknownCitationFormat,
-    set_publication_permissions,
-)
+from .utils import (AlreadyPublishedException, DOICreationException,
+                    NewPublicationTooFastException, PublicationException,
+                    PublicationsDisabledException, UnknownCitationFormat,
+                    set_publication_permissions)
 
 _log = logging.getLogger(__name__)
 
@@ -438,9 +433,9 @@ class Publication(models.Model):
             # 'doi': "10.82035/ce-btpax"
         }
 
-        if not schema42.validate(data):
+        if not schema45.validate(data):
             raise DOICreationException(
-                "Given data does not validate according to DataCite Schema 4.22!"
+                "Given data does not validate according to DataCite Schema 4.5!"
             )
 
         client_kwargs = dict(

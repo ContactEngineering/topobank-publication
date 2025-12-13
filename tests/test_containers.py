@@ -11,7 +11,7 @@ import topobank
 import yaml
 from django.conf import settings
 from django.test import override_settings
-from topobank.manager.export_zip import write_container_zip
+from topobank.manager.export_zip import export_container_zip
 from topobank.manager.models import Topography
 from topobank.testing.factories import (SurfaceFactory, TagFactory,
                                         Topography1DFactory,
@@ -78,7 +78,7 @@ def test_surface_container(example_authors, django_capture_on_commit_callbacks):
     # Create container file
     #
     outfile = tempfile.NamedTemporaryFile(mode="wb", delete=False)
-    write_container_zip(outfile, surfaces)
+    export_container_zip(outfile, surfaces)
     outfile.close()
 
     # reopen and check contents
