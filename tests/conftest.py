@@ -18,11 +18,9 @@ from topobank_publication.models import Publication
 _log = logging.getLogger(__name__)
 
 
-@pytest.mark.django_db
 @pytest.fixture
-def example_pub(example_authors):  # noqa: F811
-    """Fixture returning a publication which can be used as test example"""
-
+def example_pub(db, example_authors):  # noqa: F811
+    """Fixture returning a publication which can be used as test example."""
     user = UserFactory()
 
     publication_date = datetime.date(2020, 1, 1)
@@ -38,9 +36,9 @@ def example_pub(example_authors):  # noqa: F811
     return pub
 
 
-@pytest.mark.django_db
 @pytest.fixture
-def user_with_plugin():
+def user_with_plugin(db):
+    """Fixture returning a user with publication plugin access."""
     org_name = "Test Organization"
     org = OrganizationFactory(name=org_name, plugins_available="topobank_publication")
     user = UserFactory()
@@ -48,11 +46,12 @@ def user_with_plugin():
     return user
 
 
-@pytest.mark.django_db
 @pytest.fixture
-def orcid_socialapp():
+def orcid_socialapp(db):
+    """Fixture for ORCID social app."""
     social_app = SocialApp.objects.create(provider="orcid", name="ORCID")
     social_app.sites.set([1])
+    return social_app
 
 
 # =============================================================================
