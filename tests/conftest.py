@@ -1,4 +1,5 @@
 import datetime
+import logging
 
 import pytest
 from allauth.socialaccount.models import SocialApp
@@ -13,6 +14,8 @@ from topobank.testing.fixtures import test_analysis_function  # noqa: F401
 from topobank.testing.fixtures import two_users  # noqa: F401
 
 from topobank_publication.models import Publication
+
+_log = logging.getLogger(__name__)
 
 
 @pytest.mark.django_db
@@ -50,3 +53,73 @@ def user_with_plugin():
 def orcid_socialapp():
     social_app = SocialApp.objects.create(provider="orcid", name="ORCID")
     social_app.sites.set([1])
+
+
+# =============================================================================
+# DataCite Integration Test Fixtures
+# =============================================================================
+
+
+def _is_datacite_configured():
+    """Check if DataCite credentials are properly configured for testing."""
+    from django.conf import settings
+
+    # Check that we have credentials set
+    if not hasattr(settings, "DATACITE_USERNAME"):
+        return False
+    if not hasattr(settings, "DATACITE_PASSWORD"):
+        return False
+
+    # Check that we're using the test API, not production
+    api_url = getattr(settings, "DATACITE_API_URL", "")
+    if "api.test.datacite.org" not in api_url:
+        return False
+
+    # Check that we have a valid DOI prefix (not the default dummy)
+    doi_prefix = getattr(settings, "PUBLICATION_DOI_PREFIX", "99.999")
+    if doi_prefix == "99.999":
+        return False
+
+    return True
+
+
+@pytest.fixture(scope="session")
+def datacite_cleanup_registry():
+    """
+    Session-scoped fixture that collects DOIs created during tests
+    and deletes them at the end of the test session.
+
+    This ensures all draft DOIs created during testing are cleaned up,
+    even if individual tests fail.
+    """
+    created_dois = []
+    yield created_dois
+
+    # Cleanup at end of session
+    if not created_dois:
+        _log.info("No DOIs to clean up")
+        return
+
+    if not _is_datacite_configured():
+        _log.warning("Cannot cleanup DOIs - DataCite not configured")
+        return
+
+    from datacite import DataCiteRESTClient
+    from datacite.errors import DataCiteError, HttpError
+    from django.conf import settings
+
+    _log.info(f"Cleaning up {len(created_dois)} draft DOIs created during tests...")
+    client = DataCiteRESTClient(
+        username=settings.DATACITE_USERNAME,
+        password=settings.DATACITE_PASSWORD,
+        prefix=settings.PUBLICATION_DOI_PREFIX,
+        url=settings.DATACITE_API_URL,
+    )
+
+    for doi in created_dois:
+        try:
+            _log.info(f"Deleting draft DOI: {doi}")
+            client.delete_doi(doi)
+            _log.info(f"Successfully deleted DOI: {doi}")
+        except (DataCiteError, HttpError) as exc:
+            _log.warning(f"Failed to delete DOI {doi}: {exc}")
