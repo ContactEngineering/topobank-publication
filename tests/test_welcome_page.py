@@ -6,9 +6,9 @@ from topobank.testing.factories import (SurfaceFactory, Topography1DFactory,
 from topobank_publication.models import Publication
 
 
-@pytest.mark.django_db
 @pytest.fixture
-def test_instances(test_analysis_function):
+def test_instances(db, test_analysis_function):
+    """Fixture providing test users, surfaces, and topographies."""
     users = [UserFactory(username="user1"), UserFactory(username="user2")]
 
     surfaces = [
