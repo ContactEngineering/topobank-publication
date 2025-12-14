@@ -6,7 +6,6 @@ eliminating code duplication between Publication and PublicationCollection.
 """
 
 import logging
-from abc import ABC, abstractmethod
 from typing import Any, Dict
 
 from datacite import DataCiteRESTClient, schema45
@@ -18,7 +17,7 @@ from .utils import DOICreationException
 _log = logging.getLogger(__name__)
 
 
-class DOICreationMixin(ABC):
+class DOICreationMixin:
     """
     Abstract mixin providing DOI creation functionality for publications.
 
@@ -47,22 +46,26 @@ class DOICreationMixin(ABC):
     DOI_STATE_REGISTERED = "registered"
     DOI_STATE_FINDABLE = "findable"
 
-    @abstractmethod
     def get_doi_suffix(self) -> str:
         """
         Return the suffix for the DOI.
+
+        Subclasses must implement this method.
 
         Returns
         -------
         str
             DOI suffix, e.g., 'ce-abc123' or 'ce-coll-xyz789'
         """
-        pass
+        raise NotImplementedError(
+            f"{self.__class__.__name__} must implement get_doi_suffix()"
+        )
 
-    @abstractmethod
     def get_datacite_metadata(self, doi_name: str) -> Dict[str, Any]:
         """
         Build and return DataCite metadata dictionary.
+
+        Subclasses must implement this method.
 
         Parameters
         ----------
@@ -74,19 +77,24 @@ class DOICreationMixin(ABC):
         dict
             DataCite schema 4.5 compliant metadata
         """
-        pass
+        raise NotImplementedError(
+            f"{self.__class__.__name__} must implement get_datacite_metadata()"
+        )
 
-    @abstractmethod
     def get_full_url(self) -> str:
         """
         Return the full URL of the publication.
+
+        Subclasses must implement this method.
 
         Returns
         -------
         str
             Full URL where the publication can be accessed
         """
-        pass
+        raise NotImplementedError(
+            f"{self.__class__.__name__} must implement get_full_url()"
+        )
 
     def create_doi(self, force_draft: bool = False) -> None:
         """
