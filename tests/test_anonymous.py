@@ -18,10 +18,10 @@ def test_anonymous_user_can_see_published(
     #
     bob = UserFactory(name="Bob")
     surface_name = "Diamond Structure"
-    surface = SurfaceFactory(creator=bob, name=surface_name)
+    surface = SurfaceFactory(created_by=bob, name=surface_name)
     Topography1DFactory(surface=surface)
 
-    Publication.publish(surface, "cc0-1.0", surface.creator, example_authors)
+    Publication.publish(surface, "cc0-1.0", surface.created_by, example_authors)
 
     # no one is logged in now, assuming the select tab sends a search request
     response = api_client.get(reverse("manager:surface-api-list"))

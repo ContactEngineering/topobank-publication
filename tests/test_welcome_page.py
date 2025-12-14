@@ -12,8 +12,8 @@ def test_instances(db, test_analysis_function):
     users = [UserFactory(username="user1"), UserFactory(username="user2")]
 
     surfaces = [
-        SurfaceFactory(creator=users[0]),
-        SurfaceFactory(creator=users[0]),
+        SurfaceFactory(created_by=users[0]),
+        SurfaceFactory(created_by=users[0]),
     ]
 
     topographies = [Topography1DFactory(surface=surfaces[0])]
@@ -35,7 +35,7 @@ def test_welcome_page_statistics(
     Publication.publish(
         surface_1,
         "cc0-1.0",
-        surface_1.creator,
+        surface_1.created_by,
         [{"first_name": "Issac", "last_name": "Newton", "affiliations": []}],
     )
 

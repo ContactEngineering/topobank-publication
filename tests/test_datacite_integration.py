@@ -129,11 +129,11 @@ class TestDataCitePublicationIntegration:
         settings.PUBLICATION_DOI_MANDATORY = False  # We'll call create_doi manually
 
         user = UserFactory()
-        surface = SurfaceFactory(creator=user, name="Test Surface for DOI")
+        surface = SurfaceFactory(created_by=user, name="Test Surface for DOI")
 
         # Create publication without DOI
         publication = Publication.publish(
-            surface, "cc0-1.0", surface.creator, minimal_authors
+            surface, "cc0-1.0", surface.created_by, minimal_authors
         )
 
         assert publication.doi_name == ""
@@ -191,7 +191,7 @@ class TestDataCitePublicationIntegration:
             description="Test description for DataCite",
         )
 
-        publication = Publication.publish(surface, "ccby-4.0", surface.creator, authors)
+        publication = Publication.publish(surface, "ccby-4.0", surface.created_by, authors)
         publication.create_doi(force_draft=True)
         datacite_cleanup_registry.append(publication.doi_name)
 
@@ -231,7 +231,7 @@ class TestDataCitePublicationIntegration:
             )
 
             publication = Publication.publish(
-                surface, license_key, surface.creator, minimal_authors
+                surface, license_key, surface.created_by, minimal_authors
             )
             publication.create_doi(force_draft=True)
             datacite_cleanup_registry.append(publication.doi_name)
@@ -256,7 +256,7 @@ class TestDataCitePublicationIntegration:
         )
 
         publication = Publication.publish(
-            surface, "cc0-1.0", surface.creator, minimal_authors
+            surface, "cc0-1.0", surface.created_by, minimal_authors
         )
 
         # This will raise DOICreationException if schema validation fails
@@ -282,11 +282,11 @@ class TestDataCitePublicationIntegration:
         settings.PUBLICATION_DOI_MANDATORY = False
 
         user = UserFactory()
-        surface = SurfaceFactory(creator=user, name="Versioned Surface")
+        surface = SurfaceFactory(created_by=user, name="Versioned Surface")
 
         # Create first version
         pub_v1 = Publication.publish(
-            surface, "cc0-1.0", surface.creator, minimal_authors
+            surface, "cc0-1.0", surface.created_by, minimal_authors
         )
         pub_v1.create_doi(force_draft=True)
         datacite_cleanup_registry.append(pub_v1.doi_name)
@@ -297,7 +297,7 @@ class TestDataCitePublicationIntegration:
         # Create second version
         surface.name = "Versioned Surface (Updated)"
         pub_v2 = Publication.publish(
-            surface, "cc0-1.0", surface.creator, minimal_authors
+            surface, "cc0-1.0", surface.created_by, minimal_authors
         )
         pub_v2.create_doi(force_draft=True)
         datacite_cleanup_registry.append(pub_v2.doi_name)
@@ -328,10 +328,10 @@ class TestDataCitePublicationCollectionIntegration:
         user = UserFactory()
 
         # Create two publications first
-        surface1 = SurfaceFactory(creator=user, name="Collection Surface 1")
+        surface1 = SurfaceFactory(created_by=user, name="Collection Surface 1")
         pub1 = Publication.publish(surface1, "cc0-1.0", user, minimal_authors)
 
-        surface2 = SurfaceFactory(creator=user, name="Collection Surface 2")
+        surface2 = SurfaceFactory(created_by=user, name="Collection Surface 2")
         pub2 = Publication.publish(surface2, "cc0-1.0", user, minimal_authors)
 
         # Create collection without DOI
@@ -374,7 +374,7 @@ class TestDataCitePublicationCollectionIntegration:
         user.orcid_id = "0000-0002-1825-0097"
         user.save()
 
-        surface = SurfaceFactory(creator=user, name="Surface for Collection")
+        surface = SurfaceFactory(created_by=user, name="Surface for Collection")
         pub = Publication.publish(surface, "cc0-1.0", user, minimal_authors)
 
         collection = PublicationCollection.publish(
@@ -438,7 +438,7 @@ class TestDataCitePublicationCollectionIntegration:
 
         user = UserFactory()
 
-        surface = SurfaceFactory(creator=user, name="Surface for Duplicate Test")
+        surface = SurfaceFactory(created_by=user, name="Surface for Duplicate Test")
         pub = Publication.publish(surface, "cc0-1.0", user, minimal_authors)
 
         # Create first collection
@@ -478,9 +478,9 @@ class TestDataCiteErrorHandling:
             settings.DATACITE_PASSWORD = "invalid_password"
 
             user = UserFactory()
-            surface = SurfaceFactory(creator=user, name="Error Test Surface")
+            surface = SurfaceFactory(created_by=user, name="Error Test Surface")
             publication = Publication.publish(
-                surface, "cc0-1.0", surface.creator, minimal_authors
+                surface, "cc0-1.0", surface.created_by, minimal_authors
             )
 
             with pytest.raises(DOICreationException):
@@ -502,9 +502,9 @@ class TestDataCiteErrorHandling:
             settings.DATACITE_API_URL = "https://invalid.datacite.url/"
 
             user = UserFactory()
-            surface = SurfaceFactory(creator=user, name="Error Test Surface 2")
+            surface = SurfaceFactory(created_by=user, name="Error Test Surface 2")
             publication = Publication.publish(
-                surface, "cc0-1.0", surface.creator, minimal_authors
+                surface, "cc0-1.0", surface.created_by, minimal_authors
             )
 
             with pytest.raises(DOICreationException):
@@ -530,9 +530,9 @@ class TestDataCiteDOIVerification:
         client, _ = datacite_client
 
         user = UserFactory()
-        surface = SurfaceFactory(creator=user, name="Verification Test Surface")
+        surface = SurfaceFactory(created_by=user, name="Verification Test Surface")
         publication = Publication.publish(
-            surface, "cc0-1.0", surface.creator, minimal_authors
+            surface, "cc0-1.0", surface.created_by, minimal_authors
         )
 
         publication.create_doi(force_draft=True)
@@ -558,7 +558,7 @@ class TestDataCiteDOIVerification:
         user.orcid_id = "0000-0002-1825-0097"
         user.save()
 
-        surface = SurfaceFactory(creator=user, name="Collection Verification Surface")
+        surface = SurfaceFactory(created_by=user, name="Collection Verification Surface")
         pub = Publication.publish(surface, "cc0-1.0", user, minimal_authors)
 
         collection = PublicationCollection.publish(

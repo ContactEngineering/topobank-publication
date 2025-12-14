@@ -15,7 +15,7 @@ from topobank_publication.models import Publication
 
 @pytest.mark.django_db
 def test_publication_publisher_orcid_id(example_pub):
-    assert example_pub.publisher_orcid_id == example_pub.surface.creator.orcid_id
+    assert example_pub.publisher_orcid_id == example_pub.surface.created_by.orcid_id
 
 
 @pytest.mark.django_db
@@ -158,7 +158,7 @@ def test_surface_to_dict(mocker, example_authors):
     """
     tags = ['house', 'tree', 'tree/leaf', 'tree/leaf/fallen']
 
-    surface = SurfaceFactory(creator=user,
+    surface = SurfaceFactory(created_by=user,
                              name=name,
                              category=category,
                              description=description,
@@ -191,7 +191,7 @@ def test_surface_to_dict(mocker, example_authors):
     doi_url_mock = mocker.patch('topobank_publication.models.Publication.doi_url', new_callable=mocker.PropertyMock)
     doi_url_mock.return_value = fake_doi_url
 
-    publication = Publication.publish(surface, license, surface.creator, example_authors)
+    publication = Publication.publish(surface, license, surface.created_by, example_authors)
 
     expected_dict_published['is_published'] = True
     expected_dict_published['publication'] = {

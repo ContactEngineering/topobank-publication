@@ -37,9 +37,9 @@ def test_surface_container(example_authors, django_capture_on_commit_callbacks):
     user = UserFactory()
     tag1 = TagFactory(name="apple")
     tag2 = TagFactory(name="banana")
-    surface1 = SurfaceFactory(creator=user, tags=[tag1])
-    surface2 = SurfaceFactory(creator=user)
-    surface3 = SurfaceFactory(creator=user, description="Nice results")
+    surface1 = SurfaceFactory(created_by=user, tags=[tag1])
+    surface2 = SurfaceFactory(created_by=user)
+    surface3 = SurfaceFactory(created_by=user, description="Nice results")
 
     Topography1DFactory(surface=surface1)
     topo1b = Topography2DFactory(
@@ -68,7 +68,7 @@ def test_surface_container(example_authors, django_capture_on_commit_callbacks):
 
     # surface 2 is published
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
-        publication = Publication.publish(surface2, "cc0-1.0", surface2.creator, example_authors)
+        publication = Publication.publish(surface2, "cc0-1.0", surface2.created_by, example_authors)
     assert len(callbacks) == 1
     surface4 = publication.surface
     surfaces = [surface1, surface2, surface3, surface4]
@@ -93,8 +93,8 @@ def test_surface_container(example_authors, django_capture_on_commit_callbacks):
             assert meta_surfaces[surf_idx]["name"] == surf.name
             assert meta_surfaces[surf_idx]["category"] == surf.category
             assert meta_surfaces[surf_idx]["description"] == surf.description
-            assert meta_surfaces[surf_idx]["creator"]["name"] == surf.creator.name
-            assert meta_surfaces[surf_idx]["creator"]["orcid"] == surf.creator.orcid_id
+            assert meta_surfaces[surf_idx]["creator"]["name"] == surf.created_by.name
+            assert meta_surfaces[surf_idx]["creator"]["orcid"] == surf.created_by.orcid_id
             assert (
                 len(meta_surfaces[surf_idx]["topographies"])
                 == surf.topography_set.count()

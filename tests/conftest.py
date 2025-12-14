@@ -27,11 +27,11 @@ def example_pub(db, example_authors):  # noqa: F811
     description = "This is a nice surface for testing."
     name = "Diamond Structure"
 
-    surface = SurfaceFactory(name=name, creator=user, description=description)
+    surface = SurfaceFactory(name=name, created_by=user, description=description)
     surface.tags = ["diamond"]
 
     with freeze_time(publication_date):
-        pub = Publication.publish(surface, "cc0-1.0", surface.creator, example_authors)
+        pub = Publication.publish(surface, "cc0-1.0", surface.created_by, example_authors)
 
     return pub
 

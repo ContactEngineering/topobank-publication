@@ -18,11 +18,11 @@ def two_analyses_two_publications(test_analysis_function):
     pub1 = Publication.publish(
         surface1,
         "cc0-1.0",
-        surface1.creator,
+        surface1.created_by,
         [
             {
-                "first_name": surface1.creator.first_name,
-                "last_name": surface1.creator.last_name,
+                "first_name": surface1.created_by.first_name,
+                "last_name": surface1.created_by.last_name,
                 "affiliations": [],
             }
         ],
@@ -30,16 +30,16 @@ def two_analyses_two_publications(test_analysis_function):
     pub2 = Publication.publish(
         surface2,
         "cc0-1.0",
-        surface1.creator,
+        surface1.created_by,
         [
             {
-                "first_name": surface1.creator.first_name,
-                "last_name": surface1.creator.last_name,
+                "first_name": surface1.created_by.first_name,
+                "last_name": surface1.created_by.last_name,
                 "affiliations": [],
             },
             {
-                "first_name": surface2.creator.first_name,
-                "last_name": surface2.creator.last_name,
+                "first_name": surface2.created_by.first_name,
+                "last_name": surface2.created_by.last_name,
                 "affiliations": [],
             },
         ],
