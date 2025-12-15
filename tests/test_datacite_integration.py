@@ -27,15 +27,20 @@ from topobank.testing.factories import SurfaceFactory, UserFactory
 from topobank_publication.models import Publication, PublicationCollection
 from topobank_publication.utils import DOICreationException
 
-from .conftest import datacite_not_configured, is_datacite_configured
+from .conftest import (datacite_not_configured, get_datacite_skip_reason,
+                       is_datacite_configured)
 
 _log = logging.getLogger(__name__)
 
 
 def _can_connect_to_datacite():
-    """Try to connect to DataCite API to verify credentials work."""
+    """Try to connect to DataCite API to verify credentials work.
+
+    Returns:
+        tuple: (success: bool, error_message: str or None)
+    """
     if not is_datacite_configured():
-        return False
+        return False, get_datacite_skip_reason()
 
     try:
         client = DataCiteRESTClient(
@@ -46,17 +51,19 @@ def _can_connect_to_datacite():
         )
         # Try to list DOIs to verify connection
         client.get_dois()
-        return True
+        return True, None
     except (DataCiteError, HttpError, Exception) as exc:
-        _log.warning(f"Cannot connect to DataCite API: {exc}")
-        return False
+        error_msg = f"Cannot connect to DataCite API: {type(exc).__name__}: {exc}"
+        _log.warning(error_msg)
+        return False, error_msg
 
 
 @pytest.fixture(scope="module")
 def datacite_available():
     """Module-scoped fixture to check DataCite availability once per test module."""
-    if not _can_connect_to_datacite():
-        pytest.skip("Cannot connect to DataCite API")
+    success, error_msg = _can_connect_to_datacite()
+    if not success:
+        pytest.skip(error_msg or "Cannot connect to DataCite API")
 
 
 @pytest.fixture
