@@ -3,6 +3,7 @@ import logging
 
 import pytest
 from allauth.socialaccount.models import SocialApp
+from django.conf import settings
 from freezegun import freeze_time
 from topobank.testing.factories import (OrganizationFactory, SurfaceFactory,
                                         UserFactory)
@@ -16,6 +17,14 @@ from topobank.testing.fixtures import two_users  # noqa: F401
 from topobank_publication.models import Publication
 
 _log = logging.getLogger(__name__)
+
+
+# =============================================================================
+# Short URL Offset Configuration
+# =============================================================================
+# Set SHORT_URL_OFFSET to avoid conflicts with existing DOIs in DataCite test
+# system. This shifts the ID used for short_url encoding.
+settings.SHORT_URL_OFFSET = 1000000
 
 
 @pytest.fixture

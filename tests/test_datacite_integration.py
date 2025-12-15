@@ -358,9 +358,7 @@ class TestDataCitePublicationCollectionIntegration:
             first_name="Collection",
             last_name="Publisher",
         )
-        # Set ORCID ID on user (needed for collection metadata)
-        user.orcid_id = "0000-0002-1825-0097"
-        user.save()
+        # UserFactory automatically creates an ORCID social account
 
         surface = SurfaceFactory(created_by=user, name="Surface for Collection")
         pub = Publication.publish(surface, "cc0-1.0", user, minimal_authors)
@@ -542,9 +540,8 @@ class TestDataCiteDOIVerification:
 
         client, _ = datacite_client
 
+        # UserFactory automatically creates an ORCID social account
         user = UserFactory()
-        user.orcid_id = "0000-0002-1825-0097"
-        user.save()
 
         surface = SurfaceFactory(created_by=user, name="Collection Verification Surface")
         pub = Publication.publish(surface, "cc0-1.0", user, minimal_authors)
