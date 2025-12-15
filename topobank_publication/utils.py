@@ -57,7 +57,7 @@ def set_publication_permissions(surface):
     - add read permission for everyone
     """
     # Superusers cannot publish
-    if surface.creator.is_superuser:
+    if surface.created_by.is_superuser:
         raise PublicationException("Superusers cannot publish!")
 
     # Remove edit, share and delete permission from everyone

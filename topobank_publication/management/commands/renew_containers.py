@@ -1,5 +1,6 @@
-from django.core.management.base import BaseCommand
 import logging
+
+from django.core.management.base import BaseCommand
 
 from topobank_publication.models import Publication
 
@@ -38,9 +39,11 @@ class Command(BaseCommand):
         for pub_idx, pub in enumerate(Publication.objects.order_by('datetime')):
 
             if pub.has_container:
-                num_without += 1
-            else:
                 num_with += 1
+            else:
+                num_without += 1
+
+            if not pub.has_container:
                 if pub.has_doi:
                     num_skipped += 1
                     self.stdout.write(self.style.NOTICE(

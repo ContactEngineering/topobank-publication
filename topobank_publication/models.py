@@ -6,8 +6,6 @@ from io import BytesIO
 from typing import Literal, Optional, Union
 
 import pydantic
-from datacite import DataCiteRESTClient, schema42, schema45
-from datacite.errors import DataCiteError, HttpError
 from django.conf import settings
 from django.db import models, transaction
 from django.http.request import urljoin
@@ -18,15 +16,11 @@ from pydantic import conlist, constr
 from topobank.manager.models import Surface
 from topobank.users.models import User
 
-from .utils import (
-    AlreadyPublishedException,
-    DOICreationException,
-    NewPublicationTooFastException,
-    PublicationException,
-    PublicationsDisabledException,
-    UnknownCitationFormat,
-    set_publication_permissions,
-)
+from .doi_mixin import PublicationCollectionDOIMixin, PublicationDOIMixin
+from .utils import (AlreadyPublishedException, DOICreationException,
+                    NewPublicationTooFastException, PublicationException,
+                    PublicationsDisabledException, UnknownCitationFormat,
+                    set_publication_permissions)
 
 _log = logging.getLogger(__name__)
 
@@ -56,7 +50,7 @@ class Author(pydantic.BaseModel):
 Authors = pydantic.RootModel[conlist(Author, min_length=1)]
 
 
-class Publication(models.Model):
+class Publication(PublicationDOIMixin, models.Model):
     """Represents a publication of a digital surface twin."""
 
     class Meta:
@@ -290,226 +284,13 @@ class Publication(models.Model):
         """Returns True, if this publication already has an non-empty container file."""
         return self.container != "" and self.container.size > 0
 
-    def create_doi(self, force_draft=False):
-        """Create DOI at datacite using available information.
-
-        Parameters
-        ----------
-        force_draft: bool
-            If True, the DOI state will be 'draft' and can be deleted later.
-            If False, the system settings will be used, which could be either
-            'draft', 'registered', or 'findable'. The later two cannot be
-            deleted.
-
-        Raises
-        ------
-        DOICreationException
-            Is raised if DOI creation fails for some reason. The error message gives more details.
-        """
-
-        # "DOI name" is created from prefix and suffix, like this: <doi_prefix>/<doi_suffix>
-        doi_suffix = "ce-" + self.short_url
-        doi_name = settings.PUBLICATION_DOI_PREFIX + "/" + doi_suffix
-
-        license_infos = settings.CC_LICENSE_INFOS[self.license]
-
-        creators = []
-        for author in self.authors_json:
-            creator = {
-                "name": f"{author['last_name']}, {author['first_name']}",
-                "nameType": "Personal",
-                "givenName": author["first_name"],
-                "familyName": author["last_name"],
-            }
-
-            #
-            # Add affiliations, leave out ROR if not given
-            #
-            creator_affiliations = []
-            for aff in author["affiliations"]:
-                creator_aff = {"name": aff["name"]}
-                if aff["ror_id"]:
-                    creator_aff.update(
-                        {
-                            "schemeUri": "https://ror.org/",
-                            "affiliationIdentifier": f"https://ror.org/{aff['ror_id']}",
-                            "affiliationIdentifierScheme": "ROR",
-                        }
-                    )
-                creator_affiliations.append(creator_aff)
-            creator["affiliation"] = creator_affiliations
-
-            if author["orcid_id"]:
-                creator.update(
-                    {
-                        "nameIdentifiers": [
-                            {
-                                "schemeUri": "https://orcid.org",
-                                "nameIdentifierScheme": "ORCID",
-                                "nameIdentifier": f"https://orcid.org/{author['orcid_id']}",
-                            }
-                        ]
-                    }
-                )
-            creators.append(creator)
-
-        #
-        # Now construct the full dataset using the creators
-        #
-        data = {
-            #
-            # Mandatory
-            # ---------
-            #
-            # Identifier
-            "identifiers": [
-                {  # plural! See Issue 70
-                    "identifierType": "DOI",
-                    "identifier": doi_name,
-                }
-            ],
-            # Creator
-            "creators": creators,
-            # Title
-            "titles": [
-                {
-                    "title": self.surface.name,
-                }
-            ],
-            # Publisher
-            "publisher": "contact.engineering",
-            # PublicationYear
-            "publicationYear": str(self.datetime.year),
-            # ResourceType
-            "types": {"resourceType": "Dataset", "resourceTypeGeneral": "Dataset"},
-            #
-            # Recommended or Optional
-            # -----------------------
-            #
-            # # Subject
-            "subjects": [
-                {
-                    "subject": "FOS: Materials engineering",
-                    "valueUri": "http://www.oecd.org/science/inno/38235147.pdf",
-                    "schemeUri": "http://www.oecd.org/science/inno",
-                    "subjectScheme": "Fields of Science and Technology (FOS)",
-                },  # included in result JSON
-            ],
-            # # Contributor
-            # # Date
-            "dates": [
-                {
-                    "dateType": "Submitted",
-                    "date": self.datetime.isoformat(),
-                }  # included in result JSON
-            ],
-            # # Language
-            # # AlternateIdentifier
-            # # RelatedIdentifier
-            # # Size
-            # # Format
-            # # Version
-            "version": str(self.version),
-            # # Rights
-            "rightsList": [
-                {
-                    "rightsURI": license_infos["legal_code_url"],
-                    "rightsIdentifier": license_infos["spdx_identifier"],
-                    "rightsIdentifierSchema": "SPDX",
-                    "schemeURI": "https://spdx.org/licenses",
-                },
-            ],
-            # # Description
-            "descriptions": [
-                {
-                    # 'lang': 'en',  # key lang doesn't exist in version 4.2
-                    "descriptionType": "Abstract",
-                    "description": self.surface.description,
-                },  # missing in result
-            ],
-            # # GeoLocation
-            # # FundingReference
-            # #
-            # # Other (not based on schema 4.2)
-            # # -------------------------------
-            # # Is the following needed? Since it referes to the schema, this key is not part of the schema
-            "schemaVersion": "http://datacite.org/schema/kernel-4",
-            # 'url': "https://contact.engineering/go/btpax",
-            # 'doi': "10.82035/ce-btpax"
-        }
-
-        if not schema42.validate(data):
-            raise DOICreationException(
-                "Given data does not validate according to DataCite Schema 4.22!"
-            )
-
-        client_kwargs = dict(
-            username=settings.DATACITE_USERNAME,
-            password=settings.DATACITE_PASSWORD,
-            prefix=settings.PUBLICATION_DOI_PREFIX,
-            url=settings.DATACITE_API_URL,
-        )
-        requested_doi_state = (
-            Publication.DOI_STATE_DRAFT
-            if force_draft
-            else settings.PUBLICATION_DOI_STATE
-        )
-        try:
-            _log.info(
-                f"Connecting to DataCite REST API at {settings.DATACITE_API_URL} for DOI "
-                f"prefix {settings.PUBLICATION_DOI_PREFIX}..."
-            )
-            rest_client = DataCiteRESTClient(**client_kwargs)
-            pub_full_url = self.get_full_url()
-            match requested_doi_state:
-                case Publication.DOI_STATE_DRAFT:
-                    _log.info(
-                        f"Creating draft DOI '{doi_name}' for publication '{self.short_url}' without URL link..."
-                    )
-                    rest_client.draft_doi(data, doi=doi_name)
-                    _log.info(
-                        f"Linking draft DOI '{doi_name}' for publication '{self.short_url}' to URL {pub_full_url}..."
-                    )
-                    rest_client.update_url(doi=doi_name, url=pub_full_url)
-                case Publication.DOI_STATE_REGISTERED:
-                    _log.info(
-                        f"Creating registered DOI '{doi_name}' for publication '{self.short_url}' "
-                        f"linked to {pub_full_url}..."
-                    )
-                    rest_client.private_doi(data, url=pub_full_url, doi=doi_name)
-                case Publication.DOI_STATE_FINDABLE:
-                    _log.info(
-                        f"Creating findable DOI '{doi_name}' for publication '{self.short_url}' "
-                        f"linked to {pub_full_url}..."
-                    )
-                    rest_client.public_doi(data, url=pub_full_url, doi=doi_name)
-                case _:
-                    raise DataCiteError(
-                        f"Requested DOI state {requested_doi_state} is unknown."
-                    )
-            _log.info("Done.")
-        except (DataCiteError, HttpError) as exc:
-            msg = f"DOI creation failed, reason: {exc}"
-            _log.error(msg)
-            raise DOICreationException(msg) from exc
-
-        #
-        # Finally, set DOI name and state
-        #
-        _log.info("Saving additional data to publication record..")
-        self.doi_name = doi_name
-        self.doi_state = requested_doi_state
-        self.datacite_json = data
-        self.save()
-        _log.info(f"Done creating DOI for publication '{self.short_url}'.")
-
     def renew_container(self):
         """Renew container file or create it if not existent."""
-        from topobank.manager.export_zip import write_container_zip
+        from topobank.manager.export_zip import export_container_zip
 
         container_bytes = BytesIO()
         _log.info(f"Preparing container for publication '{self.short_url}'..")
-        write_container_zip(container_bytes, [self.surface])
+        export_container_zip(container_bytes, [self.surface])
         _log.info(
             f"Saving container for publication with URL {self.short_url} to storage for later.."
         )
@@ -686,7 +467,7 @@ class Publication(models.Model):
         )
 
 
-class PublicationCollection(models.Model):
+class PublicationCollection(PublicationCollectionDOIMixin, models.Model):
     title = models.CharField(max_length=80)
     description = models.TextField(blank=True)
     short_url = models.CharField(max_length=10, unique=True, null=True)
@@ -739,157 +520,6 @@ class PublicationCollection(models.Model):
             return urljoin(
                 settings.PUBLICATION_URL_PREFIX, f"collection/{self.short_url}"
             )
-
-    def create_doi(self, force_draft=False):
-        """Create DOI at datacite using available information.
-
-        Parameters
-        ----------
-        force_draft: bool
-            If True, the DOI state will be 'draft' and can be deleted later.
-            If False, the system settings will be used, which could be either
-            'draft', 'registered', or 'findable'. The later two cannot be
-            deleted.
-
-        Raises
-        ------
-        DOICreationException
-            Is raised if DOI creation fails for some reason. The error message gives more details.
-        """
-
-        doi_name: str = f"{settings.PUBLICATION_DOI_PREFIX}/ce-coll-{self.short_url}"
-        license_infos = settings.CC_LICENSE_INFOS["cc0-1.0"]
-
-        data = {
-            #
-            # Mandatory
-            # ---------
-            #
-            # Identifier
-            "doi": doi_name,
-            # Creator
-            "creators": [
-                {
-                    "name": f"{self.publisher.last_name}, {self.publisher.first_name}",
-                    "nameType": "Personal",
-                    "givenName": self.publisher.first_name,
-                    "familyName": self.publisher.last_name,
-                    "nameIdentifiers": [
-                        {
-                            "schemeUri": "https://orcid.org",
-                            "nameIdentifier": f"https://orcid.org/{self.publisher.orcid_id}",
-                            "nameIdentifierScheme": "ORCID",
-                        }
-                    ],
-                }
-            ],
-            # Title
-            "titles": [
-                {
-                    "title": self.title,
-                }
-            ],
-            # Publisher
-            "publisher": {"name": "contact.engineering"},
-            # PublicationYear
-            "publicationYear": str(self.datetime.year),
-            # ResourceType
-            "types": {"resourceType": "Dataset", "resourceTypeGeneral": "Dataset"},
-            #
-            # Recommended or Optional
-            # -----------------------
-            #
-            # Subject
-            "subjects": [
-                {
-                    "subject": "FOS: Materials engineering",
-                    "valueUri": "http://www.oecd.org/science/inno/38235147.pdf",
-                    "schemeUri": "http://www.oecd.org/science/inno",
-                    "subjectScheme": "Fields of Science and Technology (FOS)",
-                },
-            ],
-            # Date
-            "dates": [
-                {
-                    "dateType": "Submitted",
-                    "date": self.datetime.isoformat(),
-                }  # included in result JSON
-            ],
-            # Rights
-            "rightsList": [
-                {
-                    "rights": license_infos["title"],
-                    "rightsUri": license_infos["legal_code_url"],
-                    "schemeUri": "https://spdx.org/licenses/",
-                    "rightsIdentifier": license_infos["spdx_identifier"],
-                    "rightsIdentifierScheme": "SPDX",
-                    "lang": "en",
-                }
-            ],
-            "schemaVersion": "http://datacite.org/schema/kernel-4",
-        }
-
-        if not schema45.validate(data):
-            raise DOICreationException(
-                "Given data does not validate according to DataCite Schema 4.5!"
-            )
-
-        client_kwargs = dict(
-            username=settings.DATACITE_USERNAME,
-            password=settings.DATACITE_PASSWORD,
-            prefix=settings.PUBLICATION_DOI_PREFIX,
-            url=settings.DATACITE_API_URL,
-        )
-        requested_doi_state = (
-            Publication.DOI_STATE_DRAFT
-            if force_draft
-            else settings.PUBLICATION_DOI_STATE
-        )
-        try:
-            _log.info(
-                f"Connecting to DataCite REST API at {settings.DATACITE_API_URL} for DOI "
-                f"prefix {settings.PUBLICATION_DOI_PREFIX}..."
-            )
-            rest_client = DataCiteRESTClient(**client_kwargs)
-            pub_full_url = self.get_full_url()
-            match requested_doi_state:
-                case Publication.DOI_STATE_DRAFT:
-                    _log.info(
-                        f"Creating draft DOI '{doi_name}' for publication '{self.short_url}' without URL link..."
-                    )
-                    rest_client.draft_doi(data, doi=doi_name)
-                    _log.info(
-                        f"Linking draft DOI '{doi_name}' for publication '{self.short_url}' to URL {pub_full_url}..."
-                    )
-                    rest_client.update_url(doi=doi_name, url=pub_full_url)
-                case Publication.DOI_STATE_REGISTERED:
-                    _log.info(
-                        f"Creating registered DOI '{doi_name}' for publication '{self.short_url}' "
-                        f"linked to {pub_full_url}..."
-                    )
-                    rest_client.private_doi(data, url=pub_full_url, doi=doi_name)
-                case Publication.DOI_STATE_FINDABLE:
-                    _log.info(
-                        f"Creating findable DOI '{doi_name}' for publication '{self.short_url}' "
-                        f"linked to {pub_full_url}..."
-                    )
-                    rest_client.public_doi(data, url=pub_full_url, doi=doi_name)
-                case _:
-                    raise DataCiteError(
-                        f"Requested DOI state {requested_doi_state} is unknown."
-                    )
-            _log.info("Done.")
-        except (DataCiteError, HttpError) as exc:
-            msg = f"DOI creation failed, reason: {exc}"
-            _log.error(msg)
-            raise DOICreationException(msg) from exc
-
-        _log.info("Saving additional data to publication_collection record..")
-        self.doi_name = doi_name
-        self.doi_state = requested_doi_state
-        self.datacite_json = data
-        self.save()
-        _log.info(f"Done creating DOI for publication_collection '{self.short_url}'.")
 
     @staticmethod
     def publish(

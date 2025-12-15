@@ -11,7 +11,7 @@ import topobank
 import yaml
 from django.conf import settings
 from django.test import override_settings
-from topobank.manager.export_zip import write_container_zip
+from topobank.manager.export_zip import export_container_zip
 from topobank.manager.models import Topography
 from topobank.testing.factories import (SurfaceFactory, TagFactory,
                                         Topography1DFactory,
@@ -37,9 +37,9 @@ def test_surface_container(example_authors, django_capture_on_commit_callbacks):
     user = UserFactory()
     tag1 = TagFactory(name="apple")
     tag2 = TagFactory(name="banana")
-    surface1 = SurfaceFactory(creator=user, tags=[tag1])
-    surface2 = SurfaceFactory(creator=user)
-    surface3 = SurfaceFactory(creator=user, description="Nice results")
+    surface1 = SurfaceFactory(created_by=user, tags=[tag1])
+    surface2 = SurfaceFactory(created_by=user)
+    surface3 = SurfaceFactory(created_by=user, description="Nice results")
 
     Topography1DFactory(surface=surface1)
     topo1b = Topography2DFactory(
@@ -68,7 +68,7 @@ def test_surface_container(example_authors, django_capture_on_commit_callbacks):
 
     # surface 2 is published
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
-        publication = Publication.publish(surface2, "cc0-1.0", surface2.creator, example_authors)
+        publication = Publication.publish(surface2, "cc0-1.0", surface2.created_by, example_authors)
     assert len(callbacks) == 1
     surface4 = publication.surface
     surfaces = [surface1, surface2, surface3, surface4]
@@ -78,7 +78,7 @@ def test_surface_container(example_authors, django_capture_on_commit_callbacks):
     # Create container file
     #
     outfile = tempfile.NamedTemporaryFile(mode="wb", delete=False)
-    write_container_zip(outfile, surfaces)
+    export_container_zip(outfile, surfaces)
     outfile.close()
 
     # reopen and check contents
@@ -93,8 +93,8 @@ def test_surface_container(example_authors, django_capture_on_commit_callbacks):
             assert meta_surfaces[surf_idx]["name"] == surf.name
             assert meta_surfaces[surf_idx]["category"] == surf.category
             assert meta_surfaces[surf_idx]["description"] == surf.description
-            assert meta_surfaces[surf_idx]["creator"]["name"] == surf.creator.name
-            assert meta_surfaces[surf_idx]["creator"]["orcid"] == surf.creator.orcid_id
+            assert meta_surfaces[surf_idx]["created_by"]["name"] == surf.created_by.name
+            assert meta_surfaces[surf_idx]["created_by"]["orcid"] == surf.created_by.orcid_id
             assert (
                 len(meta_surfaces[surf_idx]["topographies"])
                 == surf.topography_set.count()
@@ -116,7 +116,7 @@ def test_surface_container(example_authors, django_capture_on_commit_callbacks):
 
         # check version information
         assert meta["versions"]["topobank"] == topobank.__version__
-        assert "creation_time" in meta
+        assert "created_at" in meta
 
         # check publication fields
         assert not meta_surfaces[0]["is_published"]

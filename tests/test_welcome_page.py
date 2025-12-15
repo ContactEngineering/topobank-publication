@@ -6,14 +6,18 @@ from topobank.testing.factories import (SurfaceFactory, Topography1DFactory,
 from topobank_publication.models import Publication
 
 
-@pytest.mark.django_db
 @pytest.fixture
-def test_instances(test_analysis_function):
-    users = [UserFactory(username="user1"), UserFactory(username="user2")]
+def test_instances(db, test_analysis_function):
+    """Fixture providing test users, surfaces, and topographies."""
+    # Statistics endpoint requires staff/admin users
+    users = [
+        UserFactory(username="user1", is_staff=True),
+        UserFactory(username="user2", is_staff=True),
+    ]
 
     surfaces = [
-        SurfaceFactory(creator=users[0]),
-        SurfaceFactory(creator=users[0]),
+        SurfaceFactory(created_by=users[0]),
+        SurfaceFactory(created_by=users[0]),
     ]
 
     topographies = [Topography1DFactory(surface=surfaces[0])]
@@ -35,7 +39,7 @@ def test_welcome_page_statistics(
     Publication.publish(
         surface_1,
         "cc0-1.0",
-        surface_1.creator,
+        surface_1.created_by,
         [{"first_name": "Issac", "last_name": "Newton", "affiliations": []}],
     )
 

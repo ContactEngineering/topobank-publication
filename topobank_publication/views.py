@@ -14,11 +14,8 @@ from trackstats.models import Metric, Period
 
 from .models import Publication, PublicationCollection
 from .serializers import PublicationCollectionSerializer, PublicationSerializer
-from .utils import (
-    AlreadyPublishedException,
-    NewPublicationTooFastException,
-    PublicationException,
-)
+from .utils import (AlreadyPublishedException, NewPublicationTooFastException,
+                    PublicationException)
 
 _log = logging.getLogger(__name__)
 
@@ -42,7 +39,7 @@ def publish_collection(request):
             publications, title, description, request.user
         )
     except AlreadyPublishedException:
-        msg = f"This Collection has already been published."
+        msg = "This Collection has already been published."
         _log.error(msg)
         return HttpResponseBadRequest(reason=msg)
     except PublicationException as exc:

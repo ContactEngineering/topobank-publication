@@ -5,6 +5,7 @@ import pytest
 from django.urls import reverse
 from topobank.testing.factories import (SurfaceFactory, Topography1DFactory,
                                         TopographyAnalysisFactory, UserFactory)
+from topobank.users.anonymous import get_anonymous_user
 
 from topobank_publication.models import Publication
 
@@ -18,11 +19,11 @@ def two_analyses_two_publications(test_analysis_function):
     pub1 = Publication.publish(
         surface1,
         "cc0-1.0",
-        surface1.creator,
+        surface1.created_by,
         [
             {
-                "first_name": surface1.creator.first_name,
-                "last_name": surface1.creator.last_name,
+                "first_name": surface1.created_by.first_name,
+                "last_name": surface1.created_by.last_name,
                 "affiliations": [],
             }
         ],
@@ -30,16 +31,16 @@ def two_analyses_two_publications(test_analysis_function):
     pub2 = Publication.publish(
         surface2,
         "cc0-1.0",
-        surface1.creator,
+        surface1.created_by,
         [
             {
-                "first_name": surface1.creator.first_name,
-                "last_name": surface1.creator.last_name,
+                "first_name": surface1.created_by.first_name,
+                "last_name": surface1.created_by.last_name,
                 "affiliations": [],
             },
             {
-                "first_name": surface2.creator.first_name,
-                "last_name": surface2.creator.last_name,
+                "first_name": surface2.created_by.first_name,
+                "last_name": surface2.created_by.last_name,
                 "affiliations": [],
             },
         ],
@@ -53,6 +54,12 @@ def two_analyses_two_publications(test_analysis_function):
     analysis2 = TopographyAnalysisFactory(
         subject_topography=pub_topo2, function=test_analysis_function
     )
+
+    # Grant anonymous user access to analyses on published surfaces
+    # (simulating public access for published content)
+    anonymous_user = get_anonymous_user()
+    analysis1.grant_permission(anonymous_user, "view")
+    analysis2.grant_permission(anonymous_user, "view")
 
     return analysis1, analysis2, pub1, pub2
 

@@ -34,7 +34,7 @@ def test_publication_version(settings):
     publication_v1 = Publication.publish(
         surface,
         "cc0-1.0",
-        surface.creator,
+        surface.created_by,
         [{"first_name": "Bob", "last_name": "Marley", "affiliations": []}],
     )
 
@@ -44,7 +44,7 @@ def test_publication_version(settings):
     publication_v2 = Publication.publish(
         surface,
         "cc0-1.0",
-        surface.creator,
+        surface.created_by,
         [{"first_name": "Bob", "last_name": "Marley", "affiliations": []}],
     )
     assert publication_v2.version == 2
@@ -61,7 +61,7 @@ def test_publication_disabled(settings):
         Publication.publish(
             surface,
             "cc0-1.0",
-            surface.creator,
+            surface.created_by,
             [{"first_name": "Bob", "last_name": "Marley", "affiliations": []}],
         )
 
@@ -69,14 +69,14 @@ def test_publication_disabled(settings):
 @pytest.mark.django_db
 def test_publication_superuser(settings):
     surface = SurfaceFactory()
-    surface.creator.is_superuser = True
-    surface.creator.save()
+    surface.created_by.is_superuser = True
+    surface.created_by.save()
     nb_surfaces = len(Surface.objects.all())
     with pytest.raises(PublicationException):
         Publication.publish(
             surface,
             "cc0-1.0",
-            surface.creator,
+            surface.created_by,
             [{"first_name": "Bob", "last_name": "Marley", "affiliations": []}],
         )
     # Make sure that the copy, and not the original surface, is deleted again
@@ -91,7 +91,7 @@ def test_failing_publication(settings):
     surface = SurfaceFactory()
     nb_surfaces = len(Surface.objects.all())
     with pytest.raises(PublicationException):
-        Publication.publish(surface, "cc0-1.0", surface.creator, [bob])
+        Publication.publish(surface, "cc0-1.0", surface.created_by, [bob])
     # Check that the copy of the surface was properly deleted again
     assert len(Surface.objects.all()) == nb_surfaces
 
@@ -99,15 +99,15 @@ def test_failing_publication(settings):
 @pytest.mark.django_db
 def test_publication_fields(example_authors):
     user = UserFactory(name="Tom")
-    surface = SurfaceFactory(creator=user)
+    surface = SurfaceFactory(created_by=user)
     publication = Publication.publish(
-        surface, "cc0-1.0", surface.creator, example_authors
+        surface, "cc0-1.0", surface.created_by, example_authors
     )
 
     assert publication.license == "cc0-1.0"
     assert publication.original_surface == surface
     assert publication.surface != publication.original_surface
-    assert publication.publisher == surface.creator
+    assert publication.publisher == surface.created_by
     assert publication.version == 1
     assert publication.get_authors_string() == "Hermione Granger, Harry Potter"
 
@@ -119,7 +119,7 @@ def test_published_field():
     publication = Publication.publish(
         surface,
         "cc0-1.0",
-        surface.creator,
+        surface.created_by,
         [{"first_name": "Alice", "last_name": "Wonderland", "affiliations": []}],
     )
     assert not publication.original_surface.is_published
@@ -130,7 +130,7 @@ def test_published_field():
 def test_set_publication_permissions():
     user1 = UserFactory()
     user2 = UserFactory()
-    surface = SurfaceFactory(creator=user1)
+    surface = SurfaceFactory(created_by=user1)
 
     # before publishing, user1 is allowed everything,
     # user2 nothing
@@ -153,7 +153,7 @@ def test_set_publication_permissions():
 def test_permissions_for_published():
     user1 = UserFactory()
     user2 = UserFactory()
-    surface = SurfaceFactory(creator=user1)
+    surface = SurfaceFactory(created_by=user1)
 
     # before publishing, user1 is allowed everything,
     # user2 nothing
@@ -164,7 +164,7 @@ def test_permissions_for_published():
     publication = Publication.publish(
         surface,
         "cc0-1.0",
-        surface.creator,
+        surface.created_by,
         [{"first_name": "Alice", "last_name": "Wonderland", "affiliations": []}],
     )
 
@@ -211,7 +211,7 @@ def test_surface_deepcopy():
 
     assert surface1.name == surface2.name
     assert surface1.category == surface2.category
-    assert surface1.creator == surface2.creator
+    assert surface1.created_by == surface2.created_by
     assert surface1.description == surface2.description
     assert surface1.tags == surface2.tags
 
@@ -251,10 +251,10 @@ def test_license_in_surface_download(
 
     user1 = UserFactory()
     user2 = UserFactory()
-    surface = SurfaceFactory(creator=user1)
+    surface = SurfaceFactory(created_by=user1)
     Topography2DFactory(surface=surface)
     publication = Publication.publish(
-        surface, license, surface.creator, example_authors
+        surface, license, surface.created_by, example_authors
     )
     client.force_login(user2)
 
@@ -295,10 +295,10 @@ def test_dont_show_published_surfaces_when_shared_filter_used(
 ):
     alice = UserFactory()
     bob = UserFactory()
-    surface1 = SurfaceFactory(creator=alice, name="Shared Surface")
+    surface1 = SurfaceFactory(created_by=alice, name="Shared Surface")
     surface1.grant_permission(bob)
-    surface2 = SurfaceFactory(creator=alice, name="Published Surface")
-    Publication.publish(surface2, "cc0-1.0", surface2.creator, example_authors)
+    surface2 = SurfaceFactory(created_by=alice, name="Published Surface")
+    Publication.publish(surface2, "cc0-1.0", surface2.created_by, example_authors)
 
     client.force_login(bob)
 
@@ -327,19 +327,19 @@ def test_limit_publication_frequency(settings):
     )
 
     alice = UserFactory()
-    surface = SurfaceFactory(creator=alice)
+    surface = SurfaceFactory(created_by=alice)
 
     Publication.publish(
         surface,
         "cc0-1.0",
-        surface.creator,
+        surface.created_by,
         [{"first_name": "Alice", "last_name": "Wonderland", "affiliations": []}],
     )
     with pytest.raises(NewPublicationTooFastException):
         Publication.publish(
             surface,
             "cc0-1.0",
-            surface.creator,
+            surface.created_by,
             [
                 {"first_name": "Alice", "last_name": "Wonderland", "affiliations": []},
                 {"first_name": "Bob", "last_name": "Marley", "affiliations": []},
@@ -349,13 +349,13 @@ def test_limit_publication_frequency(settings):
 
 def test_publishing_no_authors_given():
     alice = UserFactory()
-    surface = SurfaceFactory(creator=alice, name="Shared Surface")
+    surface = SurfaceFactory(created_by=alice, name="Shared Surface")
     with pytest.raises(pydantic.ValidationError):
         Publication.publish(surface, "cc0-1.0", alice, [])
 
 
 def test_publishing_invalid_orcid(api_client, one_line_scan):
-    api_client.force_login(one_line_scan.creator)
+    api_client.force_login(one_line_scan.created_by)
     form_data = {
         "surface": one_line_scan.surface.id,
         "authors": [
@@ -374,7 +374,7 @@ def test_publishing_invalid_orcid(api_client, one_line_scan):
 
 
 def test_publishing_invalid_ror_id(api_client, one_line_scan):
-    api_client.force_login(one_line_scan.creator)
+    api_client.force_login(one_line_scan.created_by)
     form_data = {
         "surface": one_line_scan.surface.id,
         "authors": [
@@ -398,7 +398,7 @@ def test_publishing_invalid_ror_id(api_client, one_line_scan):
 
 
 def test_publishing_wrong_license(api_client, one_line_scan, example_authors):
-    api_client.force_login(one_line_scan.creator)
+    api_client.force_login(one_line_scan.created_by)
     form_data = {
         "surface": one_line_scan.surface.id,
         "authors": example_authors,
@@ -415,8 +415,8 @@ def test_publishing_wrong_license(api_client, one_line_scan, example_authors):
 @pytest.mark.django_db
 def test_publication_original_cannot_be_deleted(example_authors):
     user = UserFactory(name="Tom")
-    surface = SurfaceFactory(creator=user)
-    Publication.publish(surface, "cc0-1.0", surface.creator, example_authors)
+    surface = SurfaceFactory(created_by=user)
+    Publication.publish(surface, "cc0-1.0", surface.created_by, example_authors)
 
     assert Surface.objects.filter(id=surface.id).count() == 1
     assert Publication.objects.filter(original_surface=surface.id).count() == 1
