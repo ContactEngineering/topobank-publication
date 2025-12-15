@@ -281,10 +281,10 @@ class PublicationDOIMixin(DOICreationMixin):
 
         return {
             # Mandatory fields
-            "identifiers": [{"identifierType": "DOI", "identifier": doi_name}],
+            "doi": doi_name,
             "creators": creators,
             "titles": [{"title": self.surface.name}],
-            "publisher": "contact.engineering",
+            "publisher": {"name": "contact.engineering"},
             "publicationYear": str(self.datetime.year),
             "types": {"resourceType": "Dataset", "resourceTypeGeneral": "Dataset"},
             # Recommended/Optional fields
@@ -293,10 +293,12 @@ class PublicationDOIMixin(DOICreationMixin):
             "version": str(self.version),
             "rightsList": [
                 {
-                    "rightsURI": license_infos["legal_code_url"],
+                    "rights": license_infos["title"],
+                    "rightsUri": license_infos["legal_code_url"],
+                    "schemeUri": "https://spdx.org/licenses/",
                     "rightsIdentifier": license_infos["spdx_identifier"],
-                    "rightsIdentifierSchema": "SPDX",
-                    "schemeURI": "https://spdx.org/licenses",
+                    "rightsIdentifierScheme": "SPDX",
+                    "lang": "en",
                 }
             ],
             "descriptions": [
