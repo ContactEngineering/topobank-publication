@@ -93,8 +93,8 @@ def test_surface_container(example_authors, django_capture_on_commit_callbacks):
             assert meta_surfaces[surf_idx]["name"] == surf.name
             assert meta_surfaces[surf_idx]["category"] == surf.category
             assert meta_surfaces[surf_idx]["description"] == surf.description
-            assert meta_surfaces[surf_idx]["creator"]["name"] == surf.created_by.name
-            assert meta_surfaces[surf_idx]["creator"]["orcid"] == surf.created_by.orcid_id
+            assert meta_surfaces[surf_idx]["created_by"]["name"] == surf.created_by.name
+            assert meta_surfaces[surf_idx]["created_by"]["orcid"] == surf.created_by.orcid_id
             assert (
                 len(meta_surfaces[surf_idx]["topographies"])
                 == surf.topography_set.count()

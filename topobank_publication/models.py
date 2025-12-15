@@ -286,11 +286,11 @@ class Publication(PublicationDOIMixin, models.Model):
 
     def renew_container(self):
         """Renew container file or create it if not existent."""
-        from topobank.manager.export_zip import write_container_zip
+        from topobank.manager.export_zip import export_container_zip
 
         container_bytes = BytesIO()
         _log.info(f"Preparing container for publication '{self.short_url}'..")
-        write_container_zip(container_bytes, [self.surface])
+        export_container_zip(container_bytes, [self.surface])
         _log.info(
             f"Saving container for publication with URL {self.short_url} to storage for later.."
         )

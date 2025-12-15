@@ -9,7 +9,11 @@ from topobank_publication.models import Publication
 @pytest.fixture
 def test_instances(db, test_analysis_function):
     """Fixture providing test users, surfaces, and topographies."""
-    users = [UserFactory(username="user1"), UserFactory(username="user2")]
+    # Statistics endpoint requires staff/admin users
+    users = [
+        UserFactory(username="user1", is_staff=True),
+        UserFactory(username="user2", is_staff=True),
+    ]
 
     surfaces = [
         SurfaceFactory(created_by=users[0]),
