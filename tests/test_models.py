@@ -167,7 +167,7 @@ def test_surface_to_dict(mocker, example_authors):
     expected_dict_unpublished = {
         'name': name,
         'description': description,
-        'creator': dict(name=user.name, orcid=user.orcid_id),
+        'created_by': dict(name=user.name, orcid=user.orcid_id),
         'tags': tags,
         'category': category,
         'is_published': False,

@@ -76,7 +76,7 @@ def _is_datacite_configured():
 
     # Check that we have a valid DOI prefix (not the default dummy)
     doi_prefix = getattr(settings, "PUBLICATION_DOI_PREFIX", "99.999")
-    if doi_prefix == "99.999":
+    if not doi_prefix.startswith("10."):
         return False
 
     return True
