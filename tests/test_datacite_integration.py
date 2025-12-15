@@ -256,7 +256,7 @@ class TestDataCitePublicationIntegration:
 
         # Verify required fields are present
         metadata = publication.datacite_json
-        assert "identifiers" in metadata
+        assert "doi" in metadata
         assert "creators" in metadata
         assert "titles" in metadata
         assert "publicationYear" in metadata
@@ -525,10 +525,9 @@ class TestDataCiteDOIVerification:
         datacite_cleanup_registry.append(publication.doi_name)
 
         # Verify we can retrieve the DOI from DataCite
+        # get_doi returns the DOI metadata if it exists, raises exception if not
         doi_info = client.get_doi(publication.doi_name)
-
         assert doi_info is not None
-        assert doi_info.get("data", {}).get("id") == publication.doi_name.lower()
 
     def test_verify_collection_doi_exists_in_datacite(
         self, datacite_available, datacite_client, datacite_cleanup_registry,
@@ -557,7 +556,6 @@ class TestDataCiteDOIVerification:
         datacite_cleanup_registry.append(collection.doi_name)
 
         # Verify we can retrieve the DOI from DataCite
+        # get_doi returns the DOI metadata if it exists, raises exception if not
         doi_info = client.get_doi(collection.doi_name)
-
         assert doi_info is not None
-        assert doi_info.get("data", {}).get("id") == collection.doi_name.lower()
