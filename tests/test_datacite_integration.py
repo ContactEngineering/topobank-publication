@@ -27,33 +27,14 @@ from topobank.testing.factories import SurfaceFactory, UserFactory
 from topobank_publication.models import Publication, PublicationCollection
 from topobank_publication.utils import DOICreationException
 
+from .conftest import datacite_not_configured, is_datacite_configured
+
 _log = logging.getLogger(__name__)
-
-
-def _is_datacite_configured():
-    """Check if DataCite credentials are properly configured for testing."""
-    # Check that we have non-default credentials
-    if not hasattr(settings, "DATACITE_USERNAME"):
-        return False
-    if not hasattr(settings, "DATACITE_PASSWORD"):
-        return False
-
-    # Check that we're using the test API, not production
-    api_url = getattr(settings, "DATACITE_API_URL", "")
-    if "api.test.datacite.org" not in api_url:
-        return False
-
-    # Check that we have a valid DOI prefix (not the default dummy)
-    doi_prefix = getattr(settings, "PUBLICATION_DOI_PREFIX", "99.999")
-    if doi_prefix == "99.999":
-        return False
-
-    return True
 
 
 def _can_connect_to_datacite():
     """Try to connect to DataCite API to verify credentials work."""
-    if not _is_datacite_configured():
+    if not is_datacite_configured():
         return False
 
     try:
@@ -71,13 +52,6 @@ def _can_connect_to_datacite():
         return False
 
 
-# Skip condition for all DataCite integration tests
-datacite_not_configured = pytest.mark.skipif(
-    not _is_datacite_configured(),
-    reason="DataCite credentials not configured or not pointing to test API",
-)
-
-
 @pytest.fixture(scope="module")
 def datacite_available():
     """Module-scoped fixture to check DataCite availability once per test module."""
@@ -91,7 +65,7 @@ def datacite_client(datacite_cleanup_registry):
     Provides a DataCite REST client for tests.
     DOIs created using this client should be registered with the cleanup registry.
     """
-    if not _is_datacite_configured():
+    if not is_datacite_configured():
         pytest.skip("DataCite credentials not configured")
 
     client = DataCiteRESTClient(
@@ -186,7 +160,7 @@ class TestDataCitePublicationIntegration:
 
         user = UserFactory()
         surface = SurfaceFactory(
-            creator=user,
+            created_by=user,
             name="Surface with Full Author Metadata",
             description="Test description for DataCite",
         )
@@ -227,7 +201,7 @@ class TestDataCitePublicationIntegration:
         for license_key in licenses:
             user = UserFactory()
             surface = SurfaceFactory(
-                creator=user, name=f"Test Surface - {license_key}"
+                created_by=user, name=f"Test Surface - {license_key}"
             )
 
             publication = Publication.publish(
@@ -250,7 +224,7 @@ class TestDataCitePublicationIntegration:
 
         user = UserFactory()
         surface = SurfaceFactory(
-            creator=user,
+            created_by=user,
             name="Schema Validation Test",
             description="Testing that metadata validates correctly",
         )
