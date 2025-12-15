@@ -20,7 +20,6 @@ import logging
 
 import pytest
 from datacite import DataCiteRESTClient
-from datacite.errors import DataCiteError, HttpError
 from django.conf import settings
 from topobank.testing.factories import SurfaceFactory, UserFactory
 
@@ -39,20 +38,28 @@ def _can_connect_to_datacite():
     Returns:
         tuple: (success: bool, error_message: str or None)
     """
+    import requests
+
     if not is_datacite_configured():
         return False, get_datacite_skip_reason()
 
     try:
-        client = DataCiteRESTClient(
-            username=settings.DATACITE_USERNAME,
-            password=settings.DATACITE_PASSWORD,
-            prefix=settings.PUBLICATION_DOI_PREFIX,
-            url=settings.DATACITE_API_URL,
+        # Make a simple authenticated request to the DataCite API to verify credentials
+        # We query the dois endpoint with our prefix to check if credentials are valid
+        api_url = settings.DATACITE_API_URL.rstrip("/")
+        response = requests.get(
+            f"{api_url}/dois",
+            params={"prefix": settings.PUBLICATION_DOI_PREFIX, "page[size]": 1},
+            auth=(settings.DATACITE_USERNAME, settings.DATACITE_PASSWORD),
+            timeout=10,
         )
-        # Try to list DOIs to verify connection
-        client.get_dois()
+        response.raise_for_status()
         return True, None
-    except (DataCiteError, HttpError, Exception) as exc:
+    except requests.exceptions.RequestException as exc:
+        error_msg = f"Cannot connect to DataCite API: {type(exc).__name__}: {exc}"
+        _log.warning(error_msg)
+        return False, error_msg
+    except Exception as exc:
         error_msg = f"Cannot connect to DataCite API: {type(exc).__name__}: {exc}"
         _log.warning(error_msg)
         return False, error_msg
