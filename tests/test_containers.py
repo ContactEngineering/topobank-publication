@@ -116,7 +116,7 @@ def test_surface_container(example_authors, django_capture_on_commit_callbacks):
 
         # check version information
         assert meta["versions"]["topobank"] == topobank.__version__
-        assert "creation_time" in meta
+        assert "created_at" in meta
 
         # check publication fields
         assert not meta_surfaces[0]["is_published"]
