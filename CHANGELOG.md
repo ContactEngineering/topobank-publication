@@ -3,12 +3,14 @@
 ## 1.10.0 (2025-12-16)
 
 - ENH: Publication collections
-- MAINT: Updated for API changes in topobank 1.66.0
+- UPSTREAM: Updated for API changes in topobank 1.66.0
 - TST: Datacite integration tests
 
 ## 1.9.0 (2025-07-28)
 
-cd
+- UPSTREAM: Serializer has been moved to the `v1` module in `topobank`
+- UPSTREAM: Writing container is now part of the `export_zip` module of `topobank`
+
 ## 1.8.2 (2025-04-24)
 
 - BUG: Prevent duplicate publications
