@@ -40,5 +40,3 @@ dependencies = [
 homepage = 'https://contact.engineering'
 repository = 'https://github.com/ContactEngineering/topobank-publication'
 
-[project.entry-points.'topobank.plugins']
-topobank_publication = 'topobank_publication.apps.PublicationPluginConfig'

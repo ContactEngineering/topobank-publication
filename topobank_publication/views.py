@@ -9,8 +9,6 @@ from rest_framework.decorators import api_view
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from topobank.manager.models import Surface
-from topobank.usage_stats.utils import increase_statistics_by_date_and_object
-from trackstats.models import Metric, Period
 
 from .models import Publication, PublicationCollection
 from .serializers import PublicationCollectionSerializer, PublicationSerializer
@@ -128,10 +126,6 @@ def go(request, short_url):
         pub = Publication.objects.get(short_url=short_url)
     except Publication.DoesNotExist:
         raise Http404()
-
-    increase_statistics_by_date_and_object(
-        Metric.objects.PUBLICATION_VIEW_COUNT, period=Period.DAY, obj=pub
-    )
 
     if (
         "HTTP_ACCEPT" in request.META
