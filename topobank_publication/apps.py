@@ -19,13 +19,13 @@ class PublicationPluginConfig(PluginConfig):
         restricted = False  # Accessible for all users, without permissions
 
     def ready(self):
-        from topobank.manager.v1.serializers import SurfaceSerializer
+        from topobank_rest_api.manager.v1.serializers import SurfaceSerializer
 
         # Monkey patch the new field into the serializer
         publication_field = serializers.HyperlinkedRelatedField(
             view_name="publication:publication-api-detail", read_only=True
         )
-        SurfaceSerializer.Meta.fields += ["publication"]
+        SurfaceSerializer.Meta.fields = list(SurfaceSerializer.Meta.fields) + ["publication"]
         SurfaceSerializer.publication = publication_field
         SurfaceSerializer.__dict__["_declared_fields"]["publication"] = (
             publication_field

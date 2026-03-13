@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework.reverse import reverse
-from topobank.users.serializers import UserSerializer
+from topobank_rest_api.users.serializers import UserSerializer
 
 from .models import CITATION_FORMAT_FLAVORS, Publication, PublicationCollection
 
