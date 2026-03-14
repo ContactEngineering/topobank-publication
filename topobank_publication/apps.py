@@ -1,8 +1,6 @@
 from rest_framework import serializers
 from django.apps import AppConfig
 
-from .version import __version__
-
 
 class PublicationAppConfig(AppConfig):
     name = "topobank_publication"
