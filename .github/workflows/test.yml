@@ -63,9 +63,6 @@ jobs:
         # Install topobank-publication before ce-ui (ce-ui imports from topobank_publication)
         pip install -e .[dev]
         pip install /tmp/ce-ui
-        pushd /tmp/topobank
-        USE_DOCKER=no python manage.py collectstatic
-        popd
 
     - name: Test
       run: PYTHONPATH="/tmp/topobank" pytest -s -v -rsx
