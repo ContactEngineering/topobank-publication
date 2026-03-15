@@ -2,7 +2,7 @@ from django.conf import settings
 from django.urls import path
 from rest_framework.routers import DefaultRouter, SimpleRouter
 
-from topobank_publication import views
+from topobank_publication import views, oaipmh_views
 
 router = DefaultRouter() if settings.DEBUG else SimpleRouter()
 router.register(r"publication", views.PublicationViewSet, basename="publication-api")
@@ -24,5 +24,6 @@ urlpatterns += [
         name="publish-collection",
     ),
     path("collection/<str:short_url>/", view=views.go_collection, name="go-collection"),
+    path("oai/", view=oaipmh_views.oai_pmh_view, name="oai-pmh"),
     path("<str:short_url>/", view=views.go, name="go"),
 ]
