@@ -67,4 +67,4 @@ jobs:
         pip install /tmp/ce-ui
 
     - name: Test
-      run: PYTHONPATH="/tmp/topobank" pytest -s -v -rsx
+      run: PYTHONPATH=".:/tmp/topobank" pytest -s -v -rsx
