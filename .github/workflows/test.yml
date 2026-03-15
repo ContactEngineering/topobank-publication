@@ -27,7 +27,7 @@ jobs:
 
     env:
       USE_DOCKER: no
-      DJANGO_SETTINGS_MODULE: test_settings
+      DJANGO_SETTINGS_MODULE: publication_test_settings
       DATABASE_URL: postgres://postgres:secret@localhost/topobank-test
       # DataCite integration test settings (uses test API, only creates draft DOIs)
       DATACITE_USERNAME: ${{ secrets.DATACITE_USERNAME }}
