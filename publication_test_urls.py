@@ -21,6 +21,14 @@ urlpatterns = [
                     include("topobank_rest_api.users.urls", namespace="users"),
                 ),
                 path(
+                    "organizations/",
+                    include("topobank_rest_api.organizations.urls", namespace="organizations"),
+                ),
+                path(
+                    "authorization/",
+                    include("topobank_rest_api.authorization.urls", namespace="authorization"),
+                ),
+                path(
                     "files/",
                     include("topobank_rest_api.files.urls", namespace="files"),
                 ),
