@@ -4,8 +4,9 @@ DataCite publication for TopoBank
 Purpose
 -------
 
-This plugin adds publishing digital surface twins and assigning DOISs, managed
-by DataCite.
+This Django application adds the capability of publishing digital surface twins and assigning DOIs, managed
+by DataCite. It also provides an OAI-PMH (Open Archives Initiative Protocol for Metadata Harvesting)
+API endpoint to expose publication metadata using the Dublin Core (`oai_dc`) format.
 
 Installation
 ------------
