@@ -14,7 +14,6 @@ from django.utils import timezone
 from django.utils.http import quote
 from pydantic import conlist, constr
 from topobank.manager.models import Surface
-from django.contrib.auth import get_user_model
 
 from .doi_mixin import PublicationCollectionDOIMixin, PublicationDOIMixin
 from .utils import (AlreadyPublishedException, DOICreationException,
