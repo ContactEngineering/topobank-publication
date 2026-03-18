@@ -1,6 +1,6 @@
 import logging
 
-from topobank.users.anonymous import get_anonymous_user
+from topobank.authorization import get_anonymous_user
 
 _log = logging.getLogger(__name__)
 

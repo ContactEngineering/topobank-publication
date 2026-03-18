@@ -14,7 +14,7 @@ from django.utils import timezone
 from django.utils.http import quote
 from pydantic import conlist, constr
 from topobank.manager.models import Surface
-from topobank.users.models import User
+from django.contrib.auth import get_user_model
 
 from .doi_mixin import PublicationCollectionDOIMixin, PublicationDOIMixin
 from .utils import (AlreadyPublishedException, DOICreationException,
@@ -82,7 +82,7 @@ class Publication(PublicationDOIMixin, models.Model):
         null=True,
         related_name="derived_publications",
     )
-    publisher = models.ForeignKey(User, on_delete=models.PROTECT)
+    publisher = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     publisher_orcid_id = models.CharField(
         max_length=19, default=""
     )  # 16 digits including 3 dashes
@@ -299,7 +299,7 @@ class Publication(PublicationDOIMixin, models.Model):
         _log.info("Done.")
 
     @staticmethod
-    def publish(surface: Surface, license: str, publisher: User, authors: list[dict]):
+    def publish(surface: Surface, license: str, publisher, authors: list[dict]):
         """
         Publish surface.
 
@@ -474,7 +474,7 @@ class PublicationCollection(PublicationCollectionDOIMixin, models.Model):
     publications = models.ManyToManyField(
         Publication, related_name="publication_collection"
     )
-    publisher = models.ForeignKey(User, on_delete=models.PROTECT)
+    publisher = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     publisher_orcid_id = models.CharField(
         max_length=19, default=""
     )  # 16 digits including 3 dashes
@@ -523,7 +523,7 @@ class PublicationCollection(PublicationCollectionDOIMixin, models.Model):
 
     @staticmethod
     def publish(
-        publications: list[Publication], title: str, description: str, publisher: User
+        publications: list[Publication], title: str, description: str, publisher
     ):
         """
         Publish collection.
