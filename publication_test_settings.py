@@ -5,7 +5,7 @@ from test_settings import *  # noqa: F403
 env = environ.Env()
 
 INSTALLED_APPS = INSTALLED_APPS + [  # noqa: F405
-    "topobank_publication.apps.PublicationAppConfig",
+    "topobank_publication.apps.TopobankPublicationAppConfig",
 ]
 
 ROOT_URLCONF = "publication_test_urls"

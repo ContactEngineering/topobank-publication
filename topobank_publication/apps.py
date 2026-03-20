@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.apps import AppConfig
 
 
-class PublicationAppConfig(AppConfig):
+class TopobankPublicationAppConfig(AppConfig):
     name = "topobank_publication"
     label = "publication"
     verbose_name = "Publication"
