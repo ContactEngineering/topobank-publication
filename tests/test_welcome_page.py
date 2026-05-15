@@ -7,7 +7,7 @@ from topobank_publication.models import Publication
 
 
 @pytest.fixture
-def test_instances(db, test_analysis_function):
+def test_instances(db, test_workflow):
     """Fixture providing test users, surfaces, and topographies."""
     # Statistics endpoint requires staff/admin users
     users = [
@@ -23,7 +23,7 @@ def test_instances(db, test_analysis_function):
     topographies = [Topography1DFactory(surface=surfaces[0])]
 
     TopographyAnalysisFactory(
-        function=test_analysis_function, subject_topography=topographies[0]
+        workflow_name=test_workflow.name, subject_topography=topographies[0]
     )
 
     return users, surfaces, topographies

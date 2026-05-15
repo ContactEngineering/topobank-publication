@@ -1,6 +1,6 @@
 import environ
 
-from test_settings import *  # noqa: F403
+from topobank.test_settings import *  # noqa: F403
 
 env = environ.Env()
 

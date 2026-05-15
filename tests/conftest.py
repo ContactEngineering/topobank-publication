@@ -10,8 +10,8 @@ from topobank.testing.factories import (OrganizationFactory, SurfaceFactory,
 from topobank.testing.fixtures import example_authors  # noqa: F401
 from topobank.testing.fixtures import handle_usage_statistics  # noqa: F401
 from topobank.testing.fixtures import one_line_scan  # noqa: F401
-from topobank.testing.fixtures import sync_analysis_functions  # noqa: F401
-from topobank.testing.fixtures import test_analysis_function  # noqa: F401
+from topobank.testing.fixtures import sync_workflows  # noqa: F401
+from topobank.testing.fixtures import test_workflow  # noqa: F401
 from topobank.testing.fixtures import two_users  # noqa: F401
 
 from topobank_publication.models import Publication
