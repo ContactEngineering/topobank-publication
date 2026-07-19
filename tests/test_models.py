@@ -6,7 +6,7 @@ import tempfile
 import zipfile
 
 import pytest
-import yaml
+import json
 from freezegun import freeze_time
 from topobank.testing.factories import SurfaceFactory, UserFactory
 
@@ -137,8 +137,8 @@ def test_renew_container(example_pub):
 
     # check whether it's a valid zip file with one surface
     with zipfile.ZipFile(tmpfile.name) as zf:
-        meta_file = zf.open('meta.yml')
-        meta = yaml.safe_load(meta_file)
+        meta_file = zf.open('index.json')
+        meta = json.load(meta_file)
 
         meta_surfaces = meta['surfaces']
 

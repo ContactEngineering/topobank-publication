@@ -4,7 +4,7 @@ import zipfile
 from io import BytesIO
 
 import pytest
-import yaml
+import json
 from django.shortcuts import reverse
 from topobank.testing.factories import UserFactory
 from topobank.testing.utils import assert_in_content
@@ -56,8 +56,8 @@ def test_go_download(api_client, example_pub, handle_usage_statistics):
 
     # open zip file and look into meta file, there should be two surfaces and three topographies
     with zipfile.ZipFile(BytesIO(response.content)) as zf:
-        meta_file = zf.open('meta.yml')
-        meta = yaml.safe_load(meta_file)
+        meta_file = zf.open('index.json')
+        meta = json.load(meta_file)
         assert len(meta['surfaces']) == 1
         assert len(meta['surfaces'][0]['topographies']) == surface.num_topographies()
         assert meta['surfaces'][0]['name'] == surface.name

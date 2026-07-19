@@ -26,6 +26,12 @@ _log = logging.getLogger(__name__)
 settings.SHORT_URL_OFFSET = 1000000
 
 
+@pytest.fixture(autouse=True)
+def _enable_db_access_for_all_tests(db):
+    """Restore the implicit DB access previously provided by the removed
+    autouse `sync_workflows` fixture in topobank.testing.fixtures."""
+
+
 @pytest.fixture
 def example_pub(db, example_authors):  # noqa: F811
     """Fixture returning a publication which can be used as test example."""
