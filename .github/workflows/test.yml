@@ -27,7 +27,7 @@ jobs:
 
     env:
       USE_DOCKER: no
-      DJANGO_SETTINGS_MODULE: topobank.settings.test
+      DJANGO_SETTINGS_MODULE: publication_test_settings
       DATABASE_URL: postgres://postgres:secret@localhost/topobank-test
       # DataCite integration test settings (uses test API, only creates draft DOIs)
       DATACITE_USERNAME: ${{ secrets.DATACITE_USERNAME }}
@@ -53,19 +53,13 @@ jobs:
 
     - name: Install
       run: |
-        pip install --upgrade pip pip-tools
-        pushd /tmp
-        git clone https://github.com/ContactEngineering/topobank.git
-        git clone https://github.com/ContactEngineering/ce-ui.git
-        popd
-        pip-compile --extra dev pyproject.toml /tmp/topobank/pyproject.toml /tmp/ce-ui/pyproject.toml
-        pip install -r requirements.txt
-        # Install topobank-publication before ce-ui (ce-ui imports from topobank_publication)
-        pip install -e .[dev]
-        pip install /tmp/ce-ui
-        pushd /tmp/topobank
-        USE_DOCKER=no python manage.py collectstatic
-        popd
+        pip install --upgrade pip
+        pip install \
+          git+https://github.com/ContactEngineering/topobank.git \
+          git+https://github.com/ContactEngineering/ce-ui.git \
+          git+https://github.com/ContactEngineering/topobank-rest-api.git \
+          git+https://github.com/ContactEngineering/topobank-orcid.git \
+          .[dev]
 
     - name: Test
-      run: PYTHONPATH="/tmp/topobank" pytest -s -v -rsx
+      run: PYTHONPATH=".:/tmp/topobank" pytest -s -v -rsx

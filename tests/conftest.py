@@ -10,8 +10,7 @@ from topobank.testing.factories import (OrganizationFactory, SurfaceFactory,
 from topobank.testing.fixtures import example_authors  # noqa: F401
 from topobank.testing.fixtures import handle_usage_statistics  # noqa: F401
 from topobank.testing.fixtures import one_line_scan  # noqa: F401
-from topobank.testing.fixtures import sync_analysis_functions  # noqa: F401
-from topobank.testing.fixtures import test_analysis_function  # noqa: F401
+from topobank.testing.fixtures import test_workflow  # noqa: F401
 from topobank.testing.fixtures import two_users  # noqa: F401
 
 from topobank_publication.models import Publication
@@ -25,6 +24,12 @@ _log = logging.getLogger(__name__)
 # Set SHORT_URL_OFFSET to avoid conflicts with existing DOIs in DataCite test
 # system. This shifts the ID used for short_url encoding.
 settings.SHORT_URL_OFFSET = 1000000
+
+
+@pytest.fixture(autouse=True)
+def _enable_db_access_for_all_tests(db):
+    """Restore the implicit DB access previously provided by the removed
+    autouse `sync_workflows` fixture in topobank.testing.fixtures."""
 
 
 @pytest.fixture

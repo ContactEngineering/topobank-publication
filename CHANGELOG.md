@@ -1,5 +1,12 @@
 # Changelog for plugin *topobank-publication*
 
+## 1.11.0 (2026-03-15)
+
+- ENH: Added OAI-PMH API endpoint for metadata harvesting using the Dublin Core (`oai_dc`) format
+- MAINT: Migrated from custom plugin architecture to standard Django application
+- MAINT: Removed obsolete download functionality (`analysis:download`)
+- MAINT: Transitioned to use standalone `topobank-rest-api` instead of `ce-ui`
+
 ## 1.10.0 (2025-12-16)
 
 - ENH: Publication collections

@@ -1,3 +1,6 @@
-from DiscoverVersion import get_version
+from importlib.metadata import version, PackageNotFoundError
 
-__version__ = get_version('topobank-publication', __file__)
+try:
+    __version__ = version("topobank-publication")
+except PackageNotFoundError:
+    __version__ = "unknown"

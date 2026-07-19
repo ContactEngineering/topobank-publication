@@ -8,7 +8,7 @@ import zipfile
 
 import pytest
 import topobank
-import yaml
+import json
 from django.conf import settings
 from django.test import override_settings
 from topobank.manager.export_zip import export_container_zip
@@ -83,18 +83,20 @@ def test_surface_container(example_authors, django_capture_on_commit_callbacks):
 
     # reopen and check contents
     with zipfile.ZipFile(outfile.name, mode="r") as zf:
-        meta_file = zf.open("meta.yml")
-        meta = yaml.safe_load(meta_file)
+        meta_file = zf.open("index.json")
+        meta = json.load(meta_file)
 
         meta_surfaces = meta["surfaces"]
 
         # check number of surfaces and topographies
         for surf_idx, surf in enumerate(surfaces):
             assert meta_surfaces[surf_idx]["name"] == surf.name
-            assert meta_surfaces[surf_idx]["category"] == surf.category
+            # ``index.json`` is written with ``exclude_none=True``, so optional
+            # fields that are ``None`` are omitted rather than serialized as null.
+            assert meta_surfaces[surf_idx].get("category") == surf.category
             assert meta_surfaces[surf_idx]["description"] == surf.description
             assert meta_surfaces[surf_idx]["created_by"]["name"] == surf.created_by.name
-            assert meta_surfaces[surf_idx]["created_by"]["orcid"] == surf.created_by.orcid_id
+            assert meta_surfaces[surf_idx]["created_by"].get("orcid") == surf.created_by.orcid_id
             assert (
                 len(meta_surfaces[surf_idx]["topographies"])
                 == surf.topography_set.count()
@@ -140,11 +142,13 @@ def test_surface_container(example_authors, django_capture_on_commit_callbacks):
             "description",
             "detrend_mode",
             "data_source",
-            "measurement_date",
             "name",
             "unit",
         ]:
             assert topo_meta[field] == getattr(topo2a, field)
+        # JSON has no native date type, so ``measurement_date`` is serialized as
+        # an ISO date string (YAML previously parsed it back into a date object).
+        assert topo_meta["measurement_date"] == str(topo2a.measurement_date)
         assert topo_meta["size"] == [topo2a.size_x, topo2a.size_y]
 
         assert topo_meta["instrument"] == {

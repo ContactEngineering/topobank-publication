@@ -53,6 +53,7 @@ splinter_tests.*/
 
 # Django stuff:
 staticfiles/
+static/
 
 # Sphinx documentation
 docs/_build/
@@ -367,3 +368,19 @@ compose/local/django/pip-packages/*
 data/
 .envs/.local/.pypi-authfile
 
+# *.ttf and *.woff2 files
+static/js/*.ttf
+static/js/*.woff2
+
+# *.js files
+static/js/*.js
+
+.env
+
+# Shared project data paths (homogenized across ContactEngineering repos)
+data-lake
+topographies
+topobank/analysis/tests/topographies
+
+# Legacy docker-based generated pip packages
+docker/local/django/pip-packages/*
