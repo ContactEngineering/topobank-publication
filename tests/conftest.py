@@ -7,6 +7,7 @@ from django.conf import settings
 from freezegun import freeze_time
 from topobank.testing.factories import (OrganizationFactory, SurfaceFactory,
                                         UserFactory)
+from topobank.testing.fixtures import api_client  # noqa: F401
 from topobank.testing.fixtures import example_authors  # noqa: F401
 from topobank.testing.fixtures import handle_usage_statistics  # noqa: F401
 from topobank.testing.fixtures import one_line_scan  # noqa: F401
