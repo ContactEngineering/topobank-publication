@@ -3,12 +3,19 @@ name: Test code functionality
 on:
   push:
     branches:
-      - '**'
+      - main
     tags:
       - '**'
   pull_request:
     branches:
       - '**'
+
+# Serialize runs and avoid a push-triggered run racing a pull_request-triggered
+# run on the same commit: the DataCite integration tests talk to a shared
+# external test account, so two concurrent runs would collide on DOI names.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   tests:

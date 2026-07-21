@@ -1,5 +1,6 @@
 import datetime
 import logging
+import random
 
 import pytest
 from allauth.socialaccount.models import SocialApp
@@ -22,9 +23,19 @@ _log = logging.getLogger(__name__)
 # =============================================================================
 # Short URL Offset Configuration
 # =============================================================================
-# Set SHORT_URL_OFFSET to avoid conflicts with existing DOIs in DataCite test
-# system. This shifts the ID used for short_url encoding.
-settings.SHORT_URL_OFFSET = 1000000
+# The DOI name of a publication is derived from its short_url, which encodes
+# ``publication.id + SHORT_URL_OFFSET`` (see topobank_publication/signals.py).
+# CI uses a fresh database every run, so ids restart at 1; with a *constant*
+# offset every run would produce the *same* DOI names and collide with draft
+# DOIs left over from previous runs (or created by a concurrent run) on the
+# shared DataCite test account ("This DOI has already been taken").
+#
+# Pick a random per-session offset so each test run (and each concurrent CI
+# job) uses a disjoint DOI namespace. SystemRandom draws from OS entropy, so
+# two processes starting at the same instant still get independent offsets.
+# The range keeps the encoded short_url comfortably within its 10-char column.
+SHORT_URL_OFFSET = random.SystemRandom().randint(10**6, 10**9)
+settings.SHORT_URL_OFFSET = SHORT_URL_OFFSET
 
 
 @pytest.fixture(autouse=True)
@@ -74,12 +85,24 @@ def orcid_socialapp(db):
 # =============================================================================
 
 
+# Placeholder credential values that mean "not really configured". The test
+# settings default DATACITE_USERNAME/PASSWORD to "test" when the secrets are
+# absent (e.g. on fork PRs, which never receive repository secrets).
+_DATACITE_PLACEHOLDER_CREDENTIALS = {"", "test"}
+
+
 def is_datacite_configured():
     """Check if DataCite credentials are properly configured for testing.
 
-    Returns True if:
-    - DATACITE_API_URL contains 'api.test.datacite.org' (test API, not production)
-    - PUBLICATION_DOI_PREFIX starts with '10.' (valid DOI prefix format)
+    Returns True only if:
+    - DATACITE_API_URL points at the test API ('api.test.datacite.org'),
+    - PUBLICATION_DOI_PREFIX is a real prefix (starts with '10.'), and
+    - DATACITE_USERNAME/PASSWORD are set to real, non-placeholder values.
+
+    The credential check matters because the settings default the username and
+    password to the placeholder "test" when the secrets are missing. Without
+    it, secret-less runs (notably fork PRs) would *run* the integration tests
+    with junk credentials and fail with a 404 instead of skipping cleanly.
     """
     from django.conf import settings
 
@@ -95,6 +118,16 @@ def is_datacite_configured():
         _log.warning(f"DataCite skip: DOI prefix '{doi_prefix}' does not start with '10.'")
         return False
 
+    # Check that real credentials are configured (not missing / the "test"
+    # placeholder default from the settings module).
+    username = getattr(settings, "DATACITE_USERNAME", "")
+    password = getattr(settings, "DATACITE_PASSWORD", "")
+    if (username in _DATACITE_PLACEHOLDER_CREDENTIALS
+            or password in _DATACITE_PLACEHOLDER_CREDENTIALS):
+        _log.warning("DataCite skip: username/password missing or set to the "
+                     "placeholder default")
+        return False
+
     return True
 
 
@@ -104,7 +137,16 @@ def get_datacite_skip_reason():
 
     doi_prefix = getattr(settings, "PUBLICATION_DOI_PREFIX", "99.999")
     api_url = getattr(settings, "DATACITE_API_URL", "")
-    return f"DataCite not configured: DOI_PREFIX='{doi_prefix}', API_URL='{api_url}'"
+    username = getattr(settings, "DATACITE_USERNAME", "")
+    has_credentials = (
+        username not in _DATACITE_PLACEHOLDER_CREDENTIALS
+        and getattr(settings, "DATACITE_PASSWORD", "")
+        not in _DATACITE_PLACEHOLDER_CREDENTIALS
+    )
+    return (
+        f"DataCite not configured: DOI_PREFIX='{doi_prefix}', "
+        f"API_URL='{api_url}', credentials_configured={has_credentials}"
+    )
 
 
 # Skip marker for DataCite integration tests
@@ -114,22 +156,73 @@ datacite_not_configured = pytest.mark.skipif(
 )
 
 
+# Only draft DOIs whose name matches the publication test pattern are swept.
+# Publication DOIs are minted as "<prefix>/ce-<short_url>", so "/ce-" marks a
+# DOI created by this test suite and distinguishes it from anything else that
+# might exist under the prefix.
+_DATACITE_TEST_DOI_MARKER = "/ce-"
+
+
+def _list_draft_dois_under_prefix():
+    """Return the names of all draft DOIs under PUBLICATION_DOI_PREFIX.
+
+    Best-effort: on any error (listing unsupported, network issue) returns an
+    empty list so cleanup degrades gracefully.
+    """
+    import requests
+    from django.conf import settings
+
+    api_url = settings.DATACITE_API_URL.rstrip("/")
+    auth = (settings.DATACITE_USERNAME, settings.DATACITE_PASSWORD)
+    draft_dois = []
+    url = f"{api_url}/dois"
+    params = {
+        "prefix": settings.PUBLICATION_DOI_PREFIX,
+        "state": "draft",
+        "page[size]": 100,
+    }
+    # Follow pagination via links.next, with a hard page cap as a safety net.
+    for _ in range(50):
+        try:
+            response = requests.get(url, params=params, auth=auth, timeout=15)
+            response.raise_for_status()
+            payload = response.json()
+        except Exception as exc:  # noqa: BLE001 - best-effort cleanup
+            _log.warning(f"Could not list draft DOIs for cleanup: {exc}")
+            break
+        for entry in payload.get("data", []):
+            attributes = entry.get("attributes", {})
+            doi = attributes.get("doi") or entry.get("id")
+            if doi and attributes.get("state") == "draft":
+                draft_dois.append(doi)
+        next_url = payload.get("links", {}).get("next")
+        if not next_url:
+            break
+        # Subsequent pages: the "next" link already carries the query string.
+        url, params = next_url, None
+    return draft_dois
+
+
 @pytest.fixture(scope="session")
 def datacite_cleanup_registry():
     """
     Session-scoped fixture that collects DOIs created during tests
     and deletes them at the end of the test session.
 
-    This ensures all draft DOIs created during testing are cleaned up,
-    even if individual tests fail.
+    Cleanup runs in two passes so that draft DOIs are removed even when a test
+    fails before registering its DOI, and so that leftovers from a previous
+    crashed run do not accumulate (and later cause "DOI already taken"):
+
+    1. Delete every DOI explicitly registered by a test.
+    2. Sweep the DataCite test account for any remaining draft DOIs under the
+       publication test prefix and delete those too.
+
+    The sweep is safe because the CI workflow serializes runs (see the
+    ``concurrency`` group in .github/workflows/test.yml), so no other run's
+    in-flight drafts are present during teardown.
     """
     created_dois = []
     yield created_dois
-
-    # Cleanup at end of session
-    if not created_dois:
-        _log.info("No DOIs to clean up")
-        return
 
     if not is_datacite_configured():
         _log.warning("Cannot cleanup DOIs - DataCite not configured")
@@ -139,7 +232,6 @@ def datacite_cleanup_registry():
     from datacite.errors import DataCiteError, HttpError
     from django.conf import settings
 
-    _log.info(f"Cleaning up {len(created_dois)} draft DOIs created during tests...")
     client = DataCiteRESTClient(
         username=settings.DATACITE_USERNAME,
         password=settings.DATACITE_PASSWORD,
@@ -147,10 +239,26 @@ def datacite_cleanup_registry():
         url=settings.DATACITE_API_URL,
     )
 
-    for doi in created_dois:
+    def _delete(doi):
         try:
             _log.info(f"Deleting draft DOI: {doi}")
             client.delete_doi(doi)
             _log.info(f"Successfully deleted DOI: {doi}")
         except (DataCiteError, HttpError) as exc:
             _log.warning(f"Failed to delete DOI {doi}: {exc}")
+
+    # Pass 1: explicitly registered DOIs.
+    deleted = set()
+    _log.info(f"Cleaning up {len(created_dois)} registered draft DOIs...")
+    for doi in created_dois:
+        if doi and doi not in deleted:
+            _delete(doi)
+            deleted.add(doi)
+
+    # Pass 2: sweep any remaining draft DOIs created by this suite (leftovers
+    # from failed tests or earlier crashed runs).
+    for doi in _list_draft_dois_under_prefix():
+        if doi in deleted or _DATACITE_TEST_DOI_MARKER not in doi:
+            continue
+        _delete(doi)
+        deleted.add(doi)
