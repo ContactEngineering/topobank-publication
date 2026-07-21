@@ -287,6 +287,11 @@ class Publication(PublicationDOIMixin, models.Model):
         """Renew container file or create it if not existent."""
         from topobank.manager.export_zip import export_container_zip
 
+        # TODO(perf): The whole container ZIP is built in memory (BytesIO) before
+        # being written to storage. For large surfaces this can exhaust RAM. This
+        # should be refactored to stream the ZIP to storage (e.g. via a temp file
+        # or a streaming upload) and ideally be run as a Celery task rather than
+        # inline in the request/command path.
         container_bytes = BytesIO()
         _log.info(f"Preparing container for publication '{self.short_url}'..")
         export_container_zip(container_bytes, [self.surface])
@@ -355,32 +360,8 @@ class Publication(PublicationDOIMixin, models.Model):
         if not settings.PUBLICATION_ENABLED:
             raise PublicationsDisabledException()
 
-        if surface.is_published:
-            raise AlreadyPublishedException()
-
         #
-        # Get latest publication (if it exists)
-        #
-        latest_publication = (
-            Publication.objects.filter(original_surface=surface)
-            .order_by("version")
-            .last()
-        )
-
-        #
-        # We limit the publication rate
-        #
-        min_seconds = settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS
-        if (latest_publication is not None) and (min_seconds is not None):
-            delta_since_last_pub = timezone.now() - latest_publication.datetime
-            delta_secs = delta_since_last_pub.total_seconds()
-            if delta_secs < min_seconds:
-                raise NewPublicationTooFastException(
-                    latest_publication, math.ceil(min_seconds - delta_secs)
-                )
-
-        #
-        # Validate license
+        # Validate license (no DB access, safe to do before locking)
         #
         license = license.lower()
         if license not in [x for x, y in Publication.LICENSE_CHOICES]:
@@ -389,14 +370,56 @@ class Publication(PublicationDOIMixin, models.Model):
             )
 
         #
-        # Validate authors
+        # Validate authors (no DB access, safe to do before locking)
         #
         authors = Authors(authors)
 
         with transaction.atomic():
             #
+            # Lock the original surface row for the duration of the publication.
+            # Without this, two concurrent publishes of the same surface both read
+            # the same `latest_publication`, compute the same next `version`, and
+            # then collide on the unique_together ("original_surface", "version")
+            # constraint -- the loser raising an uncaught IntegrityError (HTTP 500)
+            # and leaving orphaned copied surfaces / S3 files behind. Taking a
+            # row lock here (select_for_update) serializes concurrent publishes of
+            # the same surface, so the is_published / version computation below is
+            # consistent. All reads that inform the version must happen *after*
+            # this lock is acquired.
+            #
+            Surface.objects.select_for_update().get(pk=surface.pk)
+
+            if surface.is_published:
+                raise AlreadyPublishedException()
+
+            #
+            # Get latest publication (if it exists)
+            #
+            latest_publication = (
+                Publication.objects.filter(original_surface=surface)
+                .order_by("version")
+                .last()
+            )
+
+            #
+            # We limit the publication rate
+            #
+            min_seconds = settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS
+            if (latest_publication is not None) and (min_seconds is not None):
+                delta_since_last_pub = timezone.now() - latest_publication.datetime
+                delta_secs = delta_since_last_pub.total_seconds()
+                if delta_secs < min_seconds:
+                    raise NewPublicationTooFastException(
+                        latest_publication, math.ceil(min_seconds - delta_secs)
+                    )
+
+            #
             # Create a copy of this surface
             #
+            # TODO(perf): surface.deepcopy() copies all topography data files in a
+            # single, synchronous, RAM-bound operation. For large surfaces this can
+            # exhaust memory and block the request. This should be refactored to
+            # stream file copies and/or run as a Celery task.
             copy = surface.deepcopy()
 
             try:
@@ -432,20 +455,58 @@ class Publication(PublicationDOIMixin, models.Model):
             )
 
         #
-        # Try to create DOI - if this doesn't work, rollback
+        # Try to create DOI - if this doesn't work, decide whether to roll back.
+        #
+        # IMPORTANT: the DataCite HTTP calls in create_doi() run *outside* the
+        # transaction.atomic() block above (the copy + publication are already
+        # committed here). This is deliberate: a remote DOI registration must not
+        # be tied to a DB transaction that could roll back independently.
+        #
+        # Rollback policy (see GH: stranded-DOI issue): a registered/findable DOI
+        # may have been created remotely at DataCite even when the local call
+        # ultimately reports failure -- and registered/findable DOIs cannot be
+        # deleted. Blindly deleting pub+copy in that case would strand a permanent
+        # dead DOI pointing at nothing. So we only roll back (delete pub+copy) when
+        # the DOI was *definitely not* created remotely (see
+        # DOICreationException.remote_created in doi_mixin.py). For the ambiguous
+        # case we KEEP the publication persisted with an empty doi_name; the
+        # `complete_dois` management command detects such records (doi_name == "")
+        # and reconciles them later.
         #
         if settings.PUBLICATION_DOI_MANDATORY:
             try:
                 pub.create_doi()
             except DOICreationException as exc:
                 _log.error("DOI creation failed, reason: %s", exc)
-                _log.warning(
-                    f"Cannot create publication with DOI, deleting copy (surface {copy.pk}) of "
-                    f"surface {surface.pk} and publication instance."
-                )
-                pub.delete()  # need to delete pub first because it references copy
-                copy.delete()
-                raise PublicationException(f"Cannot create DOI, reason: {exc}") from exc
+                if getattr(exc, "remote_created", False):
+                    # The DOI may already exist remotely and cannot be safely
+                    # deleted. Keep the publication (with empty doi_name) so it is
+                    # picked up by the `complete_dois` reconciliation command
+                    # instead of stranding a dead remote DOI.
+                    _log.error(
+                        f"DOI for publication (surface {copy.pk}, original "
+                        f"{surface.pk}) may have been created remotely; keeping the "
+                        f"publication record (id {pub.pk}) for reconciliation via "
+                        f"'complete_dois' rather than deleting it."
+                    )
+                    raise PublicationException(
+                        f"DOI creation reported an error but the DOI may exist "
+                        f"remotely; publication kept for reconciliation. "
+                        f"Reason: {exc}"
+                    ) from exc
+                else:
+                    # The remote DOI was definitely not created (e.g. the initial
+                    # draft_doi call failed, or a pre-flight schema validation
+                    # error). Safe to roll back completely.
+                    _log.warning(
+                        f"Cannot create publication with DOI, deleting copy (surface "
+                        f"{copy.pk}) of surface {surface.pk} and publication instance."
+                    )
+                    pub.delete()  # need to delete pub first because it references copy
+                    copy.delete()
+                    raise PublicationException(
+                        f"Cannot create DOI, reason: {exc}"
+                    ) from exc
         else:
             _log.info(
                 "Skipping creation of DOI, because it is not configured as mandatory."
@@ -565,14 +626,17 @@ class PublicationCollection(PublicationCollectionDOIMixin, models.Model):
         if PublicationCollection.objects.filter(unique_hash=unique_hash).exists():
             raise AlreadyPublishedException()
 
-        pub = PublicationCollection.objects.create(
-            title=title,
-            description=description,
-            publisher=publisher,
-            publisher_orcid_id=publisher.orcid_id,
-            unique_hash=unique_hash,
-        )
-        pub.publications.set(publications)
+        # Create the collection and set its members atomically so a failure
+        # between the two never leaves a collection without its publications.
+        with transaction.atomic():
+            pub = PublicationCollection.objects.create(
+                title=title,
+                description=description,
+                publisher=publisher,
+                publisher_orcid_id=publisher.orcid_id,
+                unique_hash=unique_hash,
+            )
+            pub.publications.set(publications)
 
         if settings.PUBLICATION_DOI_MANDATORY:
             try:

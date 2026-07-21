@@ -2,9 +2,10 @@ import logging
 
 import pydantic
 from django.contrib.auth.decorators import login_required
+from django.db import IntegrityError
 from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import HttpResponse, get_object_or_404, redirect
-from rest_framework import mixins, viewsets
+from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
@@ -26,12 +27,34 @@ def publish_collection(request):
     description = request.data.get("description", "")
     if pks is None:
         return HttpResponseBadRequest(reason="Missing publication id's")
-    if len(pks) < 2:
-        return HttpResponseBadRequest(reason="Not 2 or more id's provided")
     if title is None:
         return HttpResponseBadRequest(reason="Missing title")
-    publications = [get_object_or_404(Publication, pk=pk) for pk in pks]
-    # TODO: Check for duplications
+
+    #
+    # Deduplicate the provided ids (preserving order) and only then check that
+    # at least two *distinct* publications were requested.
+    #
+    deduped_pks = list(dict.fromkeys(pks))
+    if len(deduped_pks) < 2:
+        return HttpResponseBadRequest(reason="Not 2 or more id's provided")
+
+    publications = [get_object_or_404(Publication, pk=pk) for pk in deduped_pks]
+
+    #
+    # A DOI collection may only be built from publications the requesting user
+    # actually owns (is the publisher of). Otherwise any user could mint a DOI
+    # collection referencing arbitrary other users' publications.
+    #
+    for pub in publications:
+        is_publisher = pub.publisher_id == request.user.id
+        if not (is_publisher or request.user.is_staff):
+            return HttpResponseForbidden(
+                reason=(
+                    f"You do not have permission to include publication {pub.pk} "
+                    f"in a collection."
+                )
+            )
+
     try:
         collection = PublicationCollection.publish(
             publications, title, description, request.user
@@ -103,6 +126,16 @@ def publish(request):
         msg = f"Publication failed, reason: {exc}"
         _log.error(msg)
         return HttpResponseBadRequest(reason=msg)
+    except IntegrityError as exc:
+        # A concurrent publish of the same surface can race to the
+        # unique_together ("original_surface", "version") constraint. Report a
+        # 409 Conflict rather than letting it surface as an HTTP 500.
+        msg = (
+            "Publication failed due to a concurrent publication of the same "
+            "dataset. Please try again."
+        )
+        _log.error("%s Reason: %s", msg, exc)
+        return HttpResponse(status=status.HTTP_409_CONFLICT, content=str.encode(msg))
     except pydantic.ValidationError as exc:
         msg = f"Failed to validate authors: {exc}"
         _log.error(msg)
@@ -153,13 +186,17 @@ class PublicationViewSet(
             )
             q = q.filter(original_surface=original_surface)
             order_by_version = True
-        except TypeError:
+        except (TypeError, ValueError):
+            # TypeError: param absent (int(None)); ValueError: non-numeric value
+            # such as ?original_surface=abc. Either way, skip this filter.
             pass
         try:
             surface = int(self.request.query_params.get("surface", default=None))
             q = q.filter(surface=surface)
             order_by_version = True
-        except TypeError:
+        except (TypeError, ValueError):
+            # TypeError: param absent (int(None)); ValueError: non-numeric value
+            # such as ?surface=abc. Either way, skip this filter.
             pass
         if order_by_version:
             q = q.order_by("-version")

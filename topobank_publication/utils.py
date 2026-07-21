@@ -47,7 +47,22 @@ class UnknownCitationFormat(Exception):
 
 
 class DOICreationException(Exception):
-    pass
+    """Raised when DOI creation at DataCite fails.
+
+    Attributes
+    ----------
+    remote_created : bool
+        Whether the DOI may already have been created remotely at DataCite when
+        the failure occurred. If ``False`` the remote creation definitely did not
+        happen (e.g. a pre-flight schema validation error, or a failure on the
+        very first draft_doi call), so a caller can safely roll back. If ``True``
+        the remote state is ambiguous (a registered/findable DOI may exist and
+        cannot be deleted), so the caller must NOT strand it by rolling back.
+    """
+
+    def __init__(self, *args, remote_created: bool = False):
+        super().__init__(*args)
+        self.remote_created = remote_created
 
 
 def set_publication_permissions(surface):
