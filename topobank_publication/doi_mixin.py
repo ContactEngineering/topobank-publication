@@ -173,6 +173,13 @@ class DOICreationMixin:
             "url": settings.DATACITE_API_URL,
         }
 
+        # Tracks whether we may have created something remotely at DataCite by the
+        # time an exception is raised. This lets callers decide whether it is safe
+        # to roll back (delete the local record) without stranding a dead remote
+        # DOI. It starts False and is flipped to True immediately before / after
+        # any call that mutates remote DataCite state.
+        remote_created = False
+
         try:
             _log.info(
                 f"Connecting to DataCite REST API at {settings.DATACITE_API_URL} "
@@ -187,7 +194,12 @@ class DOICreationMixin:
                         f"Creating draft DOI '{doi_name}' for '{self.short_url}' "
                         "without URL link..."
                     )
+                    # If draft_doi() itself fails, nothing was created remotely and
+                    # remote_created stays False (safe to roll back). Once it
+                    # returns, a draft DOI exists remotely; a subsequent failure on
+                    # update_url() is ambiguous, so mark remote_created=True.
                     rest_client.draft_doi(data, doi=doi_name)
+                    remote_created = True
                     _log.info(
                         f"Linking draft DOI '{doi_name}' to URL {pub_full_url}..."
                     )
@@ -198,6 +210,10 @@ class DOICreationMixin:
                         f"Creating registered DOI '{doi_name}' for '{self.short_url}' "
                         f"linked to {pub_full_url}..."
                     )
+                    # A registered DOI cannot be deleted. If this single call fails
+                    # we cannot tell whether the DOI was created remotely, so treat
+                    # it as possibly created (do not roll back).
+                    remote_created = True
                     rest_client.private_doi(data, url=pub_full_url, doi=doi_name)
 
                 case self.DOI_STATE_FINDABLE:
@@ -205,9 +221,12 @@ class DOICreationMixin:
                         f"Creating findable DOI '{doi_name}' for '{self.short_url}' "
                         f"linked to {pub_full_url}..."
                     )
+                    # A findable DOI cannot be deleted; same ambiguity as above.
+                    remote_created = True
                     rest_client.public_doi(data, url=pub_full_url, doi=doi_name)
 
                 case _:
+                    # Unknown state is caught before any remote mutation.
                     raise DataCiteError(
                         f"Requested DOI state {doi_state} is unknown."
                     )
@@ -217,7 +236,7 @@ class DOICreationMixin:
         except (DataCiteError, HttpError) as exc:
             msg = f"DOI creation failed, reason: {exc}"
             _log.error(msg)
-            raise DOICreationException(msg) from exc
+            raise DOICreationException(msg, remote_created=remote_created) from exc
 
     def _save_doi_info(
         self, doi_name: str, data: Dict[str, Any], doi_state: str
@@ -411,24 +430,29 @@ class PublicationCollectionDOIMixin(DOICreationMixin):
         """
         license_infos = settings.CC_LICENSE_INFOS["cc0-1.0"]
 
+        creator = {
+            "name": f"{self.publisher.last_name}, {self.publisher.first_name}",
+            "nameType": "Personal",
+            "givenName": self.publisher.first_name,
+            "familyName": self.publisher.last_name,
+        }
+        # Only emit an ORCID name identifier if the publisher actually has an
+        # ORCID iD. Emitting "https://orcid.org/" with an empty/None id would
+        # produce an invalid identifier that could be rejected by DataCite.
+        publisher_orcid_id = getattr(self.publisher, "orcid_id", None)
+        if publisher_orcid_id:
+            creator["nameIdentifiers"] = [
+                {
+                    "schemeUri": "https://orcid.org",
+                    "nameIdentifier": f"https://orcid.org/{publisher_orcid_id}",
+                    "nameIdentifierScheme": "ORCID",
+                }
+            ]
+
         return {
             # Mandatory fields
             "doi": doi_name,
-            "creators": [
-                {
-                    "name": f"{self.publisher.last_name}, {self.publisher.first_name}",
-                    "nameType": "Personal",
-                    "givenName": self.publisher.first_name,
-                    "familyName": self.publisher.last_name,
-                    "nameIdentifiers": [
-                        {
-                            "schemeUri": "https://orcid.org",
-                            "nameIdentifier": f"https://orcid.org/{self.publisher.orcid_id}",
-                            "nameIdentifierScheme": "ORCID",
-                        }
-                    ],
-                }
-            ],
+            "creators": [creator],
             "titles": [{"title": self.title}],
             "publisher": {"name": "contact.engineering"},
             "publicationYear": str(self.datetime.year),

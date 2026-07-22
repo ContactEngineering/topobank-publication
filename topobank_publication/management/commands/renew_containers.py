@@ -38,17 +38,38 @@ class Command(BaseCommand):
 
         for pub_idx, pub in enumerate(Publication.objects.order_by('datetime')):
 
-            if pub.has_container:
+            #
+            # Determining whether a container exists does a storage `.size` HEAD
+            # request (see Publication.has_container). If the underlying object is
+            # missing/unreachable this must not abort the whole run - treat it as
+            # "no container" so it gets (re)created below.
+            #
+            try:
+                has_container = pub.has_container
+            except Exception as exc:
+                _log.warning(
+                    f"Could not determine container status for publication "
+                    f"'{pub.short_url}' (id {pub.id}), reason: {exc}. "
+                    f"Assuming the container is missing.")
+                has_container = False
+
+            if has_container:
                 num_with += 1
             else:
                 num_without += 1
 
-            if not pub.has_container:
-                if pub.has_doi:
-                    num_skipped += 1
-                    self.stdout.write(self.style.NOTICE(
-                        f"Skipping publication '{pub.short_url}', because it already has a DOI and should not change."))
-                    continue
+            #
+            # Corrected policy (matches this command's docstring):
+            #  - has a container AND a DOI  -> skip (immutable, must not change)
+            #  - missing its container      -> (re)create it, even if it has a DOI
+            #  - otherwise (container, no DOI) -> renew
+            #
+            if has_container and pub.has_doi:
+                num_skipped += 1
+                self.stdout.write(self.style.NOTICE(
+                    f"Skipping publication '{pub.short_url}', because it already has a "
+                    f"DOI and a container and should not change."))
+                continue
 
             _log.info(f"Renewing container for publication '{pub.short_url}', id {pub.id}, {pub_idx+1}/{num_total}..")
             if not options['dry_run']:
