@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.reverse import reverse
 
@@ -48,6 +49,7 @@ class PublicationSerializer(serializers.HyperlinkedModelSerializer):
             "citation",
             "has_access_to_original_surface",
             "download_url",
+            "async_download_url",
         ]
 
     url = serializers.HyperlinkedIdentityField(
@@ -63,6 +65,7 @@ class PublicationSerializer(serializers.HyperlinkedModelSerializer):
     citation = serializers.SerializerMethodField()
     has_access_to_original_surface = serializers.SerializerMethodField()
     download_url = serializers.SerializerMethodField()
+    async_download_url = serializers.SerializerMethodField()
 
     def get_citation(self, obj):
         d = {}
@@ -77,9 +80,26 @@ class PublicationSerializer(serializers.HyperlinkedModelSerializer):
             )
         return False
 
+    @extend_schema_field(serializers.CharField())
     def get_download_url(self, obj):
+        """URL of the archived container for this publication."""
         return reverse(
-            "manager:surface-download",
+            "publication:download-container",
+            kwargs={"short_url": obj.short_url},
+            request=self.context["request"],
+        )
+
+    def get_async_download_url(self, obj):
+        """URL that starts building a ZIP container of the published dataset.
+
+        Named `async_download_url` because it has to be POSTed to and returns a
+        container whose task state is then polled; the archive is built by a
+        Celery worker. Used when there is no archived container to serve; see
+        `topobank.manager.tasks.import_container_from_url` for a client that
+        prefers `download_url` and falls back to this one.
+        """
+        return reverse(
+            "manager:surface-download-v2",
             kwargs={"surface_ids": str(obj.surface.id)},
             request=self.context["request"],
         )

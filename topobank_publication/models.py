@@ -292,6 +292,7 @@ class Publication(PublicationDOIMixin, models.Model):
         # should be refactored to stream the ZIP to storage (e.g. via a temp file
         # or a streaming upload) and ideally be run as a Celery task rather than
         # inline in the request/command path.
+        self.surface.refresh_from_db()
         container_bytes = BytesIO()
         _log.info(f"Preparing container for publication '{self.short_url}'..")
         export_container_zip(container_bytes, [self.surface])
@@ -453,6 +454,10 @@ class Publication(PublicationDOIMixin, models.Model):
                 publisher=publisher,
                 publisher_orcid_id=publisher.orcid_id,
             )
+
+            from .tasks import renew_container_task
+
+            transaction.on_commit(lambda pub_id=pub.id: renew_container_task.delay(pub_id))
 
         #
         # Try to create DOI - if this doesn't work, decide whether to roll back.

@@ -25,5 +25,13 @@ urlpatterns += [
     ),
     path("collection/<str:short_url>/", view=views.go_collection, name="go-collection"),
     path("oai/", view=oaipmh_views.oai_pmh_view, name="oai-pmh"),
+    # GET
+    # * Redirect to the archived container of a published dataset. Must be
+    #   declared before the catch-all `go` route below.
+    path(
+        "<str:short_url>/download/",
+        view=views.download_container,
+        name="download-container",
+    ),
     path("<str:short_url>/", view=views.go, name="go"),
 ]

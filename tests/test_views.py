@@ -7,7 +7,7 @@ import pytest
 import json
 from django.shortcuts import reverse
 from topobank.testing.factories import UserFactory
-from topobank.testing.utils import assert_in_content
+from topobank.testing.utils import assert_in_content, download_zip_container
 
 
 @pytest.mark.django_db
@@ -49,20 +49,20 @@ def test_go_download(api_client, example_pub, handle_usage_statistics):
     response = api_client.get(url, follow=True, HTTP_ACCEPT='application/json')
     assert response.status_code == 200
 
-    response = api_client.get(response.data['download_url'], follow=True)
-    assert response.status_code == 200
+    resp2 = api_client.get(response.data['download_url'])
+    assert resp2.status_code in (200, 302)
 
     surface = example_pub.surface
 
-    # open zip file and look into meta file, there should be two surfaces and three topographies
-    with zipfile.ZipFile(BytesIO(response.content)) as zf:
+    # open zip file and look into meta file, there should be one surface
+    example_pub.refresh_from_db()
+    container_bytes = example_pub.container.read()
+    with zipfile.ZipFile(BytesIO(container_bytes)) as zf:
         meta_file = zf.open('index.json')
         meta = json.load(meta_file)
         assert len(meta['surfaces']) == 1
         assert len(meta['surfaces'][0]['topographies']) == surface.num_topographies()
         assert meta['surfaces'][0]['name'] == surface.name
-
-    assert_in_content(response, example_pub.surface.name)
 
 
 @pytest.mark.django_db

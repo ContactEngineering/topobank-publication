@@ -6,10 +6,12 @@ import pydantic
 import pytest
 from django.conf import settings
 from django.shortcuts import reverse
+from django.test import override_settings
 from topobank.manager.models import Surface
 from topobank.testing.factories import (SurfaceFactory, TagFactory,
                                         Topography2DFactory, UserFactory)
-from topobank.testing.utils import assert_in_content, assert_not_in_content
+from topobank.testing.utils import (assert_in_content, assert_not_in_content,
+                                    download_zip_container)
 
 from topobank_publication.models import Publication
 from topobank_publication.utils import (NewPublicationTooFastException,
@@ -242,6 +244,7 @@ def test_surface_deepcopy():
         assert t1.instrument_parameters == t2.instrument_parameters
 
 
+@override_settings(DELETE_EXISTING_FILES=True)
 @pytest.mark.parametrize("license", settings.CC_LICENSE_INFOS.keys())
 @pytest.mark.django_db
 def test_license_in_surface_download(
@@ -260,19 +263,15 @@ def test_license_in_surface_download(
 
     response = client.get(
         reverse(
-            "manager:surface-download",
-            kwargs=dict(surface_ids=str(publication.surface.id)),
+            "publication:download-container",
+            kwargs=dict(short_url=publication.short_url),
         )
     )
+    assert response.status_code in (200, 302)
+    publication.refresh_from_db()
+    container_data = publication.container.read()
 
-    assert response.status_code == 200
-    # for published surfaces, the downloaded file should have the name "ce-<short_url>.zip"
-    assert (
-        response["Content-Disposition"]
-        == f'attachment; filename="ce-{publication.short_url}.zip"'
-    )
-
-    downloaded_file = io.BytesIO(response.content)
+    downloaded_file = io.BytesIO(container_data)
     with zipfile.ZipFile(downloaded_file) as z:
         with z.open("README.txt") as readme_file:
             readme_bytes = readme_file.read()

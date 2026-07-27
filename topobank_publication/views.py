@@ -1,6 +1,8 @@
 import logging
+import os.path
 
 import pydantic
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError
 from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden
@@ -151,6 +153,31 @@ def go_collection(request, short_url):
     except PublicationCollection.DoesNotExist:
         raise Http404()
     return redirect(f"/ui/dataset-collection/{collection.id}")
+
+
+@api_view(["GET"])
+def download_container(request, short_url):
+    """Download the archived container of a published dataset."""
+    pub = get_object_or_404(Publication, short_url=short_url)
+
+    # Published datasets are public, but go through the permission check anyway
+    # so that this route cannot outlive a change to that rule
+    if not pub.surface.has_permission(request.user, "view"):
+        return HttpResponseForbidden()
+
+    if not pub.has_container:
+        pub.renew_container()
+
+    if getattr(settings, "USE_S3_STORAGE", False):
+        return redirect(pub.container.url)
+
+    response = HttpResponse(
+        pub.container.read(), content_type="application/x-zip-compressed"
+    )
+    response["Content-Disposition"] = (
+        f'attachment; filename="{os.path.basename(pub.container_storage_path)}"'
+    )
+    return response
 
 
 def go(request, short_url):
