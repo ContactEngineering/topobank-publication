@@ -14,7 +14,7 @@ router.register(
 
 urlpatterns = router.urls
 
-app_name = "topobank_publication"
+app_name = "publication"
 urlprefix = "go/"
 urlpatterns += [
     path("publish/", view=views.publish, name="publish"),

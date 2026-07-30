@@ -7,7 +7,6 @@ import pytest
 import json
 from django.shortcuts import reverse
 from topobank.testing.factories import UserFactory
-from topobank.testing.utils import assert_in_content, download_zip_container
 
 
 @pytest.mark.django_db

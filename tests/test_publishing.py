@@ -10,8 +10,7 @@ from django.test import override_settings
 from topobank.manager.models import Surface
 from topobank.testing.factories import (SurfaceFactory, TagFactory,
                                         Topography2DFactory, UserFactory)
-from topobank.testing.utils import (assert_in_content, assert_not_in_content,
-                                    download_zip_container)
+from topobank.testing.utils import assert_in_content, assert_not_in_content
 
 from topobank_publication.models import Publication
 from topobank_publication.utils import (NewPublicationTooFastException,
