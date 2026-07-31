@@ -1,11 +1,25 @@
 # Changelog for plugin *topobank-publication*
 
-## 1.11.0 (2026-03-15)
+## 1.11.0 (2026-07-31)
 
 - ENH: Added OAI-PMH API endpoint for metadata harvesting using the Dublin Core (`oai_dc`) format
+- ENH: Asynchronous creation of the container files of published datasets
+- BUG: Concurrent publications are serialized (`select_for_update`); the view returns
+  HTTP 409 instead of leaving orphaned surfaces behind on a version collision
+- BUG: A failed publication is only rolled back if the DOI was definitely not created
+  remotely; otherwise the record is kept for reconciliation by `complete_dois`
+- BUG: The anonymously readable publication API no longer exposes the publisher's
+  email address, `is_staff` or `date_joined`
+- BUG: `renew_containers` now follows its documented policy and tolerates storage
+  errors while probing for container existence
+- BUG: `publish_collection` requires publisher ownership (or staff) and runs in a
+  transaction
 - MAINT: Migrated from custom plugin architecture to standard Django application
 - MAINT: Removed obsolete download functionality (`analysis:download`)
 - MAINT: Transitioned to use standalone `topobank-rest-api` instead of `ce-ui`
+- MAINT: User and authentication moved to a separate submodule; removed the
+  organization permission model
+- BUILD: Changed build system to hatchling
 
 ## 1.10.0 (2025-12-16)
 
