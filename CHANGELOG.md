@@ -1,25 +1,26 @@
 # Changelog for plugin *topobank-publication*
 
-## 1.11.0 (2026-07-31)
+## 1.11.0 (2026-08-02)
 
-- ENH: Added OAI-PMH API endpoint for metadata harvesting using the Dublin Core (`oai_dc`) format
+- ENH: OAI-PMH endpoint for metadata harvesting in Dublin Core (`oai_dc`) format
 - ENH: Asynchronous creation of the container files of published datasets
-- BUG: Concurrent publications are serialized (`select_for_update`); the view returns
-  HTTP 409 instead of leaving orphaned surfaces behind on a version collision
-- BUG: A failed publication is only rolled back if the DOI was definitely not created
-  remotely; otherwise the record is kept for reconciliation by `complete_dois`
-- BUG: The anonymously readable publication API no longer exposes the publisher's
-  email address, `is_staff` or `date_joined`
-- BUG: `renew_containers` now follows its documented policy and tolerates storage
-  errors while probing for container existence
-- BUG: `publish_collection` requires publisher ownership (or staff) and runs in a
-  transaction
-- MAINT: Migrated from custom plugin architecture to standard Django application
+- BUG: Concurrent publications are serialized; a version collision returns HTTP 409
+  instead of leaving orphaned surfaces behind
+- BUG: A failed publication is kept for reconciliation by `complete_dois` unless the
+  DOI was definitely not created remotely
+- BUG: The anonymous publication API no longer exposes the publisher's email address,
+  `is_staff` or `date_joined`
+- BUG: `renew_containers` follows its documented policy and tolerates storage errors
+- BUG: `publish_collection` requires publisher ownership and runs in a transaction
+- MAINT: Migrated from the custom plugin architecture to a standard Django application
 - MAINT: Removed obsolete download functionality (`analysis:download`)
-- MAINT: Transitioned to use standalone `topobank-rest-api` instead of `ce-ui`
-- MAINT: User and authentication moved to a separate submodule; removed the
-  organization permission model
+- MAINT: Use the standalone `topobank-rest-api` instead of `ce-ui`
+- MAINT: User and authentication moved to `topobank-orcid`; removed the organization
+  permission model
 - BUILD: Changed build system to hatchling
+- BUILD: Force-include the app's static files in the distribution; they were missing
+  from the wheel because `.gitignore` matched `topobank_publication/static/`
+- BUILD: Anchored the `static/` pattern in `.gitignore` to the repository root
 
 ## 1.10.0 (2025-12-16)
 

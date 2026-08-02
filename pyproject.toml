@@ -50,3 +50,15 @@ repository = 'https://github.com/ContactEngineering/topobank-publication'
 
 [tool.hatch.version]
 source = "vcs"
+
+[tool.hatch.build]
+# `.gitignore` contains a bare `static/` pattern, meant for a webpack output
+# directory and for `staticfiles/`. It also matches this package's own static
+# directory, and hatchling honours VCS ignore files when selecting files for a
+# distribution. Without this override the bundled Creative Commons legalcode
+# texts are absent from the built wheel, so Django's `AppDirectoriesFinder`
+# cannot find them and `collectstatic` silently omits them.
+artifacts = ["topobank_publication/static/**"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["topobank_publication"]
