@@ -1,6 +1,6 @@
 # Changelog for plugin *topobank-publication*
 
-## 1.11.0 (2026-07-31)
+## 1.11.0 (2026-08-02)
 
 - ENH: Added OAI-PMH API endpoint for metadata harvesting using the Dublin Core (`oai_dc`) format
 - ENH: Asynchronous creation of the container files of published datasets
@@ -20,6 +20,11 @@
 - MAINT: User and authentication moved to a separate submodule; removed the
   organization permission model
 - BUILD: Changed build system to hatchling
+- BUILD: Force-include the app's static files in the built distribution. The bare
+  `static/` pattern in `.gitignore` also matched `topobank_publication/static/`,
+  and since hatchling honours VCS ignore files the Creative Commons legalcode
+  texts were missing from the wheel, so `collectstatic` could not collect them
+- BUILD: Anchored the `static/` pattern in `.gitignore` to the repository root
 
 ## 1.10.0 (2025-12-16)
 

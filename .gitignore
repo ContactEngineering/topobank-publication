@@ -53,7 +53,10 @@ splinter_tests.*/
 
 # Django stuff:
 staticfiles/
-static/
+# Anchored to the repository root, so this does not also match
+# `topobank_publication/static/`, which holds tracked application assets (see
+# `artifacts` in pyproject.toml).
+/static/
 
 # Sphinx documentation
 docs/_build/
