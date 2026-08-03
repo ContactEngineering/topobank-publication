@@ -16,10 +16,12 @@ from pydantic import conlist, constr
 from topobank.manager.models import Surface
 
 from .doi_mixin import PublicationCollectionDOIMixin, PublicationDOIMixin
-from .utils import (AlreadyPublishedException, DOICreationException,
+from .utils import (EMPTY_DATASET_MESSAGE, AlreadyPublishedException,
+                    DOICreationException, EmptyDatasetException,
+                    MeasurementsNotReadyException,
                     NewPublicationTooFastException, PublicationException,
                     PublicationsDisabledException, UnknownCitationFormat,
-                    set_publication_permissions)
+                    set_publication_permissions, unready_measurements)
 
 _log = logging.getLogger(__name__)
 
@@ -392,6 +394,20 @@ class Publication(PublicationDOIMixin, models.Model):
 
             if surface.is_published:
                 raise AlreadyPublishedException()
+
+            #
+            # Refuse to publish a dataset that has no measurements at all, or
+            # whose measurements have not all been processed successfully.
+            # These must happen under the row lock (and before deepcopy) so
+            # that a measurement cannot be added, removed or slip into a
+            # non-successful state between the check and the copy.
+            #
+            if not surface.topography_set.exists():
+                raise EmptyDatasetException(EMPTY_DATASET_MESSAGE)
+
+            not_ready = unready_measurements(surface)
+            if not_ready:
+                raise MeasurementsNotReadyException(not_ready)
 
             #
             # Get latest publication (if it exists)

@@ -8,7 +8,8 @@ import zipfile
 import pytest
 import json
 from freezegun import freeze_time
-from topobank.testing.factories import SurfaceFactory, UserFactory
+from topobank.testing.factories import (SurfaceFactory, Topography1DFactory,
+                                        UserFactory)
 
 from topobank_publication.models import Publication
 
@@ -163,6 +164,9 @@ def test_surface_to_dict(mocker, example_authors):
                              category=category,
                              description=description,
                              tags=tags)
+    # Needed to make the surface publishable; to_dict() does not include
+    # topographies, so this does not affect the expected dictionaries below.
+    Topography1DFactory(surface=surface)
 
     expected_dict_unpublished = {
         'name': name,

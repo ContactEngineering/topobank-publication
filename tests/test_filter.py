@@ -1,6 +1,7 @@
 import pytest
 from django.urls import reverse
-from topobank.testing.factories import SurfaceFactory, UserFactory
+from topobank.testing.factories import (SurfaceFactory, Topography1DFactory,
+                                        UserFactory)
 
 from topobank_publication.models import Publication
 
@@ -16,6 +17,7 @@ def test_sharing_status_filter(api_client, example_authors, handle_usage_statist
     surface_shared_egress.grant_permission(parceval)
 
     surface_published_egress = SurfaceFactory(name="published-egress", created_by=lancelot)
+    Topography1DFactory(surface=surface_published_egress)
     Publication.publish(surface_published_egress, "cc0-1.0", surface_published_egress.created_by, example_authors)
     # NOTE THAT THIS CREATES A COPY !!!!
 
@@ -24,6 +26,7 @@ def test_sharing_status_filter(api_client, example_authors, handle_usage_statist
     surface_published_ingress = SurfaceFactory(
         name="published-ingress", created_by=parceval
     )
+    Topography1DFactory(surface=surface_published_ingress)
     Publication.publish(surface_published_ingress, "cc0-1.0", surface_published_ingress.created_by, example_authors)
     SurfaceFactory(name="invisible", created_by=parceval)
 

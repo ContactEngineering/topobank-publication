@@ -23,6 +23,43 @@ class AlreadyPublishedException(PublicationException):
     pass
 
 
+EMPTY_DATASET_MESSAGE = (
+    "A dataset must contain at least one measurement before it can be published."
+)
+
+
+class EmptyDatasetException(PublicationException):
+    """A surface without any measurements cannot be published."""
+
+    pass
+
+
+def describe_unready_measurements(measurements):
+    """Human-readable reason why `measurements` block publication."""
+    details = ", ".join(
+        f"'{topography.name}' ({topography.get_task_state_display()})"
+        for topography in measurements
+    )
+    return (
+        "All measurements must have been processed successfully before a "
+        f"dataset can be published. Not ready: {details}."
+    )
+
+
+class MeasurementsNotReadyException(PublicationException):
+    """Not all measurements of a surface have been successfully processed."""
+
+    def __init__(self, measurements):
+        self._measurements = list(measurements)
+
+    @property
+    def measurements(self):
+        return self._measurements
+
+    def __str__(self):
+        return describe_unready_measurements(self._measurements)
+
+
 class NewPublicationTooFastException(PublicationException):
     """A new publication has been issued to fast after the former one."""
 
@@ -63,6 +100,34 @@ class DOICreationException(Exception):
     def __init__(self, *args, remote_created: bool = False):
         super().__init__(*args)
         self.remote_created = remote_created
+
+
+def unready_measurements(surface):
+    """Return the measurements of `surface` that block its publication.
+
+    Publication requires every measurement to be in state SUCCESS. Only that
+    state guarantees the datafile could actually be read and the cached
+    metadata plus the squeezed data file exist.
+
+    Every other state blocks:
+
+    - FAILURE, because publication takes an immutable, permanently read-only
+      copy (see `set_publication_permissions`). A measurement that fails to
+      inspect again on the copy could then never be fixed or removed, and the
+      dataset would keep a broken measurement under a citable DOI.
+    - The in-flight states and NOTRUN, because their outcome is not known yet
+      and may well turn out to be a failure.
+
+    Returns
+    -------
+    list of Topography
+        Blocking measurements, ordered by name. Empty if the surface is ready.
+    """
+    from topobank.manager.models import Topography
+
+    return list(
+        surface.topography_set.exclude(task_state=Topography.SUCCESS).order_by("name")
+    )
 
 
 def set_publication_permissions(surface):

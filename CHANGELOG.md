@@ -1,5 +1,16 @@
 # Changelog for plugin *topobank-publication*
 
+## Unreleased
+
+- API: Publication now requires every measurement of a dataset to have been
+  processed successfully. Datasets with failed, still-processing or not-yet-started
+  measurements, and datasets without any measurement, are rejected with HTTP 400
+  where they were previously published. Publication creates a permanently
+  read-only copy, so a measurement that cannot be inspected would otherwise stay
+  broken forever under an already minted DOI
+- ENH: New `GET /go/publishable/<surface_id>/` endpoint reporting whether a dataset
+  can be published and, if not, which measurements are holding it up
+
 ## 1.11.0 (2026-08-02)
 
 - ENH: OAI-PMH endpoint for metadata harvesting in Dublin Core (`oai_dc`) format
