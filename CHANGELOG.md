@@ -18,6 +18,8 @@
 - ENH: Published datasets are now described as schema.org JSON-LD, served from the
   new `GET /go/<short_url>/metadata/` endpoint and by content negotiation on
   `GET /go/<short_url>/` for `application/ld+json`
+- ENH: The `/go/` routes now carry signposting typed links (`cite-as`, `describedby`,
+  `item`, `license`, `author`, `type`) in the HTTP `Link` header
 
 ## 1.11.0 (2026-08-02)
 
