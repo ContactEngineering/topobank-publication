@@ -1,5 +1,10 @@
 # Changelog for plugin *topobank-publication*
 
+## Unreleased
+
+- ENH: The surface serializer reports `version` and `nb_versions`, so the dataset
+  list can say which version a row is and that there are others
+
 ## 1.12.0 (2026-08-03)
 
 - API: Publication now requires every measurement of a dataset to have been

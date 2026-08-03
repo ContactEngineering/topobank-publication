@@ -20,5 +20,11 @@ class TopobankPublicationAppConfig(AppConfig):
             publication_field
         )
 
+        # The dataset list shows only the latest version of a dataset, so a row
+        # has to be able to say which version it is and that there are others.
+        from .version_info import patch_surface_serializer
+
+        patch_surface_serializer(SurfaceSerializer)
+
         # make sure the signals are registered now
         import topobank_publication.signals  # noqa: F401
