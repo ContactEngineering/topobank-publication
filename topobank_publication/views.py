@@ -15,8 +15,9 @@ from topobank.manager.models import Surface
 
 from .models import Publication, PublicationCollection
 from .serializers import PublicationCollectionSerializer, PublicationSerializer
-from .utils import (AlreadyPublishedException, NewPublicationTooFastException,
-                    PublicationException)
+from .utils import (EMPTY_DATASET_MESSAGE, AlreadyPublishedException,
+                    NewPublicationTooFastException, PublicationException,
+                    describe_unready_measurements, unready_measurements)
 
 _log = logging.getLogger(__name__)
 
@@ -72,6 +73,75 @@ def publish_collection(request):
 
     # TODO: Handle expections that occur during publish
     return Response({"collection_id": collection.id})
+
+
+@api_view(["GET"])
+def publication_readiness(request, surface_id):
+    """
+    Report whether a dataset can currently be published.
+
+    The publish wizard queries this up front so that a dataset which would be
+    rejected by `Publication.publish` is flagged before the user fills in
+    authors and a license, rather than at the final "Publish" step.
+
+    This reports the conditions that are stable enough to be worth showing
+    early. Two conditions that `publish` also enforces are deliberately not
+    reported: the rate limit, because it expires on its own and is already
+    reported as a 429 by `publish`; and "already published", because
+    publication revokes every user permission on the copy, so an already
+    published surface is rejected by the permission check below anyway.
+    """
+    surface = get_object_or_404(Surface, pk=surface_id)
+
+    if not surface.has_permission(request.user, "full"):
+        return HttpResponseForbidden(
+            reason="User does not have permission to publish this dataset"
+        )
+
+    blockers = []
+
+    if not settings.PUBLICATION_ENABLED:
+        blockers.append(
+            {
+                "code": "publications-disabled",
+                "message": "Publishing is currently disabled on this instance.",
+            }
+        )
+
+    if not surface.topography_set.exists():
+        blockers.append(
+            {"code": "no-measurements", "message": EMPTY_DATASET_MESSAGE}
+        )
+
+    not_ready = unready_measurements(surface)
+    if not_ready:
+        blockers.append(
+            {
+                "code": "measurements-not-ready",
+                "message": describe_unready_measurements(not_ready),
+            }
+        )
+
+    return Response(
+        {
+            "publishable": len(blockers) == 0,
+            "blockers": blockers,
+            "unready_measurements": [
+                {
+                    "id": measurement.topography.id,
+                    "name": measurement.topography.name,
+                    "reason": measurement.reason,
+                    "detail": measurement.describe(),
+                    "task_state": measurement.topography.task_state,
+                    "task_state_display": (
+                        measurement.topography.get_task_state_display()
+                    ),
+                    "missing_metadata": list(measurement.missing_metadata),
+                }
+                for measurement in not_ready
+            ],
+        }
+    )
 
 
 @api_view(["POST"])

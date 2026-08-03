@@ -19,6 +19,11 @@ urlprefix = "go/"
 urlpatterns += [
     path("publish/", view=views.publish, name="publish"),
     path(
+        "publishable/<int:surface_id>/",
+        view=views.publication_readiness,
+        name="publication-readiness",
+    ),
+    path(
         "publish-collection/",
         view=views.publish_collection,
         name="publish-collection",

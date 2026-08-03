@@ -7,7 +7,7 @@ from allauth.socialaccount.models import SocialApp
 from django.conf import settings
 from freezegun import freeze_time
 from topobank.testing.factories import (OrganizationFactory, SurfaceFactory,
-                                        UserFactory)
+                                        Topography1DFactory, UserFactory)
 from topobank.testing.fixtures import api_client  # noqa: F401
 from topobank.testing.fixtures import example_authors  # noqa: F401
 from topobank.testing.fixtures import handle_usage_statistics  # noqa: F401
@@ -55,6 +55,9 @@ def example_pub(db, example_authors):  # noqa: F811
 
     surface = SurfaceFactory(name=name, created_by=user, description=description)
     surface.tags = ["diamond"]
+    # A dataset needs at least one successfully processed measurement to be
+    # publishable.
+    Topography1DFactory(surface=surface)
 
     with freeze_time(publication_date):
         pub = Publication.publish(surface, "cc0-1.0", surface.created_by, example_authors)

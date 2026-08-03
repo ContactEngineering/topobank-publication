@@ -7,13 +7,15 @@ import pytest
 from django.conf import settings
 from django.shortcuts import reverse
 from django.test import override_settings
-from topobank.manager.models import Surface
+from topobank.manager.models import Surface, Topography
 from topobank.testing.factories import (SurfaceFactory, TagFactory,
                                         Topography2DFactory, UserFactory)
 from topobank.testing.utils import assert_in_content, assert_not_in_content
 
 from topobank_publication.models import Publication
-from topobank_publication.utils import (NewPublicationTooFastException,
+from topobank_publication.utils import (EmptyDatasetException,
+                                        MeasurementsNotReadyException,
+                                        NewPublicationTooFastException,
                                         PublicationException,
                                         PublicationsDisabledException,
                                         set_publication_permissions)
@@ -32,6 +34,7 @@ def test_publication_version(settings):
     settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = None  # disable
 
     surface = SurfaceFactory()
+    Topography2DFactory(surface=surface)
     publication_v1 = Publication.publish(
         surface,
         "cc0-1.0",
@@ -101,6 +104,7 @@ def test_failing_publication(settings):
 def test_publication_fields(example_authors):
     user = UserFactory(name="Tom")
     surface = SurfaceFactory(created_by=user)
+    Topography2DFactory(surface=surface)
     publication = Publication.publish(
         surface, "cc0-1.0", surface.created_by, example_authors
     )
@@ -116,6 +120,7 @@ def test_publication_fields(example_authors):
 @pytest.mark.django_db
 def test_published_field():
     surface = SurfaceFactory()
+    Topography2DFactory(surface=surface)
     assert not surface.is_published
     publication = Publication.publish(
         surface,
@@ -155,6 +160,7 @@ def test_permissions_for_published():
     user1 = UserFactory()
     user2 = UserFactory()
     surface = SurfaceFactory(created_by=user1)
+    Topography2DFactory(surface=surface)
 
     # before publishing, user1 is allowed everything,
     # user2 nothing
@@ -296,6 +302,7 @@ def test_dont_show_published_surfaces_when_shared_filter_used(
     surface1 = SurfaceFactory(created_by=alice, name="Shared Surface")
     surface1.grant_permission(bob)
     surface2 = SurfaceFactory(created_by=alice, name="Published Surface")
+    Topography2DFactory(surface=surface2)
     Publication.publish(surface2, "cc0-1.0", surface2.created_by, example_authors)
 
     client.force_login(bob)
@@ -326,6 +333,7 @@ def test_limit_publication_frequency(settings):
 
     alice = UserFactory()
     surface = SurfaceFactory(created_by=alice)
+    Topography2DFactory(surface=surface)
 
     Publication.publish(
         surface,
@@ -414,6 +422,7 @@ def test_publishing_wrong_license(api_client, one_line_scan, example_authors):
 def test_publication_original_cannot_be_deleted(example_authors):
     user = UserFactory(name="Tom")
     surface = SurfaceFactory(created_by=user)
+    Topography2DFactory(surface=surface)
     Publication.publish(surface, "cc0-1.0", surface.created_by, example_authors)
 
     assert Surface.objects.filter(id=surface.id).count() == 1
@@ -424,3 +433,237 @@ def test_publication_original_cannot_be_deleted(example_authors):
 
     assert Surface.objects.filter(id=surface.id).count() == 1
     assert Publication.objects.filter(original_surface=surface.id).count() == 1
+
+
+@pytest.mark.django_db
+def test_publishing_blocked_by_empty_dataset(example_authors):
+    user = UserFactory()
+    surface = SurfaceFactory(created_by=user)
+
+    with pytest.raises(EmptyDatasetException):
+        Publication.publish(surface, "cc0-1.0", user, example_authors)
+
+    assert Publication.objects.count() == 0
+    assert Surface.objects.count() == 1
+
+
+def test_publication_readiness_reports_empty_dataset(api_client, one_line_scan):
+    surface = one_line_scan.surface
+    one_line_scan.delete()
+
+    api_client.force_login(surface.created_by)
+    response = api_client.get(
+        reverse(
+            "publication:publication-readiness", kwargs=dict(surface_id=surface.id)
+        )
+    )
+
+    assert response.status_code == 200
+    assert not response.data["publishable"]
+    assert [blocker["code"] for blocker in response.data["blockers"]] == [
+        "no-measurements"
+    ]
+    assert response.data["unready_measurements"] == []
+
+
+@pytest.mark.django_db
+def test_publishing_blocked_by_failed_measurement(example_authors):
+    user = UserFactory()
+    surface = SurfaceFactory(created_by=user)
+    Topography2DFactory(surface=surface, name="good")
+    Topography2DFactory(surface=surface, name="broken", task_state=Topography.FAILURE)
+
+    with pytest.raises(MeasurementsNotReadyException) as exc_info:
+        Publication.publish(surface, "cc0-1.0", user, example_authors)
+
+    assert "broken" in str(exc_info.value)
+    assert "good" not in str(exc_info.value)
+
+    # Nothing may have been created: no publication, and in particular no
+    # orphaned copy of the surface.
+    assert Publication.objects.count() == 0
+    assert Surface.objects.count() == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "task_state",
+    [
+        Topography.PENDING,
+        Topography.PENDING_DEPENDENCIES,
+        Topography.STARTED,
+        Topography.RETRY,
+        Topography.NOTRUN,
+    ],
+)
+def test_publishing_blocked_by_unfinished_measurement(example_authors, task_state):
+    """Only SUCCESS unblocks publication; in-flight states block as well."""
+    user = UserFactory()
+    surface = SurfaceFactory(created_by=user)
+    Topography2DFactory(surface=surface, name="still-running", task_state=task_state)
+
+    with pytest.raises(MeasurementsNotReadyException):
+        Publication.publish(surface, "cc0-1.0", user, example_authors)
+
+    assert Publication.objects.count() == 0
+    assert Surface.objects.count() == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "missing_field,expected_label",
+    [("size_x", "physical size"), ("unit", "unit")],
+)
+def test_publishing_blocked_by_incomplete_metadata(
+    example_authors, missing_field, expected_label
+):
+    """A measurement can be SUCCESS and still lack the metadata to read it.
+
+    `refresh_cache` skips the derived-file generation for such a measurement but
+    still reports SUCCESS, so the task state alone does not catch this.
+    """
+    user = UserFactory()
+    surface = SurfaceFactory(created_by=user)
+    topography = Topography2DFactory(surface=surface, name="no-metadata")
+    # Bypass save() so that neither the task state nor the cache is touched: we
+    # want precisely the SUCCESS-but-incomplete combination.
+    Topography.objects.filter(pk=topography.pk).update(**{missing_field: None})
+
+    topography.refresh_from_db()
+    assert topography.task_state == Topography.SUCCESS
+    assert not topography.is_metadata_complete
+
+    with pytest.raises(MeasurementsNotReadyException) as exc_info:
+        Publication.publish(surface, "cc0-1.0", user, example_authors)
+
+    assert "no-metadata" in str(exc_info.value)
+    assert expected_label in str(exc_info.value)
+
+    (measurement,) = exc_info.value.measurements
+    assert measurement.reason == "incomplete-metadata"
+    assert measurement.missing_metadata == (expected_label,)
+
+    assert Publication.objects.count() == 0
+    assert Surface.objects.count() == 1
+
+
+def test_publication_readiness_reports_incomplete_metadata(
+    api_client, one_line_scan
+):
+    Topography.objects.filter(pk=one_line_scan.pk).update(unit=None)
+
+    api_client.force_login(one_line_scan.created_by)
+    response = api_client.get(
+        reverse(
+            "publication:publication-readiness",
+            kwargs=dict(surface_id=one_line_scan.surface.id),
+        )
+    )
+
+    assert response.status_code == 200
+    assert not response.data["publishable"]
+    assert [blocker["code"] for blocker in response.data["blockers"]] == [
+        "measurements-not-ready"
+    ]
+    (measurement,) = response.data["unready_measurements"]
+    assert measurement["reason"] == "incomplete-metadata"
+    assert measurement["missing_metadata"] == ["unit"]
+    assert measurement["detail"] == "missing unit"
+    # The measurement did process successfully; only its metadata is lacking.
+    assert measurement["task_state"] == Topography.SUCCESS
+
+
+@pytest.mark.django_db
+def test_publishing_allowed_when_all_measurements_successful(example_authors):
+    user = UserFactory()
+    surface = SurfaceFactory(created_by=user)
+    Topography2DFactory(surface=surface, name="one")
+    Topography2DFactory(surface=surface, name="two")
+
+    publication = Publication.publish(surface, "cc0-1.0", user, example_authors)
+
+    assert publication.surface.topography_set.count() == 2
+
+
+def test_publish_endpoint_rejects_failed_measurement(
+    api_client, one_line_scan, example_authors
+):
+    one_line_scan.task_state = Topography.FAILURE
+    one_line_scan.save(update_fields=["task_state"])
+
+    api_client.force_login(one_line_scan.created_by)
+    response = api_client.post(
+        reverse("publication:publish"),
+        data={
+            "surface": one_line_scan.surface.id,
+            "authors": example_authors,
+            "license": "cc0-1.0",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "must have been processed successfully" in response.reason_phrase
+    assert Publication.objects.count() == 0
+
+
+def test_publication_readiness_endpoint(api_client, one_line_scan):
+    api_client.force_login(one_line_scan.created_by)
+    url = reverse(
+        "publication:publication-readiness",
+        kwargs=dict(surface_id=one_line_scan.surface.id),
+    )
+
+    response = api_client.get(url)
+    assert response.status_code == 200
+    assert response.data["publishable"]
+    assert response.data["blockers"] == []
+    assert response.data["unready_measurements"] == []
+
+    one_line_scan.task_state = Topography.FAILURE
+    one_line_scan.save(update_fields=["task_state"])
+
+    response = api_client.get(url)
+    assert response.status_code == 200
+    assert not response.data["publishable"]
+    assert [blocker["code"] for blocker in response.data["blockers"]] == [
+        "measurements-not-ready"
+    ]
+    (measurement,) = response.data["unready_measurements"]
+    assert measurement["id"] == one_line_scan.id
+    assert measurement["name"] == one_line_scan.name
+    assert measurement["reason"] == "not-processed"
+    assert measurement["detail"] == "failure"
+    assert measurement["task_state"] == Topography.FAILURE
+    assert measurement["task_state_display"] == "failure"
+    assert measurement["missing_metadata"] == []
+
+
+@override_settings(PUBLICATION_ENABLED=False)
+def test_publication_readiness_reports_disabled_publications(
+    api_client, one_line_scan
+):
+    api_client.force_login(one_line_scan.created_by)
+    response = api_client.get(
+        reverse(
+            "publication:publication-readiness",
+            kwargs=dict(surface_id=one_line_scan.surface.id),
+        )
+    )
+
+    assert response.status_code == 200
+    assert not response.data["publishable"]
+    assert [blocker["code"] for blocker in response.data["blockers"]] == [
+        "publications-disabled"
+    ]
+
+
+def test_publication_readiness_requires_permission(api_client, one_line_scan):
+    api_client.force_login(UserFactory())
+    response = api_client.get(
+        reverse(
+            "publication:publication-readiness",
+            kwargs=dict(surface_id=one_line_scan.surface.id),
+        )
+    )
+    assert response.status_code == 403
