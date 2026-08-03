@@ -15,6 +15,10 @@
   file and bandwidth generation
 - ENH: New `GET /go/publishable/<surface_id>/` endpoint reporting whether a dataset
   can be published and, if not, which measurements are holding it up and why
+- ENH: DataCite metadata now describes the data itself and not just its landing page:
+  `contentUrl` points at the container download, `formats` reports its MIME type,
+  `language` the language of the descriptive metadata, and `sizes` the container size
+  once it has been built
 
 ## 1.11.0 (2026-08-02)
 
