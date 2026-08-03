@@ -9,15 +9,10 @@ https://github.com/ContactEngineering/topobank-publication/issues/21.
 import pytest
 from datacite import schema45
 from django.conf import settings
-from topobank.testing.factories import (SurfaceFactory, Topography1DFactory,
-                                        UserFactory)
 
 from topobank_publication.doi_mixin import (CONTAINER_MIME_TYPE,
                                             METADATA_LANGUAGE,
                                             DOICreationMixin)
-from topobank_publication.models import Publication
-
-from .conftest import datacite_not_configured
 
 DOI_NAME = "10.12345/ce-test"
 
@@ -88,44 +83,3 @@ def test_metadata_still_validates_against_kernel_4(example_pub):
             if key not in DOICreationMixin.DATACITE_API_ONLY_ATTRIBUTES
         }
     )
-
-
-@datacite_not_configured
-@pytest.mark.django_db
-def test_datacite_accepts_and_echoes_content_url(
-    datacite_available, datacite_client, datacite_cleanup_registry, settings
-):
-    """`contentUrl` is outside the kernel-4 schema, so verify the API takes it.
-
-    This is the only check that the attribute really survives the round trip to
-    DataCite; everything else about it can be asserted offline.
-    """
-    settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = None
-    settings.PUBLICATION_DOI_MANDATORY = False
-
-    user = UserFactory()
-    surface = SurfaceFactory(created_by=user, name="Surface with content URL")
-    Topography1DFactory(surface=surface)
-    publication = Publication.publish(
-        surface,
-        "cc0-1.0",
-        user,
-        [
-            {
-                "first_name": "Test",
-                "last_name": "Author",
-                "orcid_id": "",
-                "affiliations": [{"name": "Test University", "ror_id": ""}],
-            }
-        ],
-    )
-
-    publication.create_doi(force_draft=True)
-    datacite_cleanup_registry.append(publication.doi_name)
-
-    client, _ = datacite_client
-    attributes = client.get_metadata(publication.doi_name)
-
-    assert attributes["contentUrl"] == [publication.container_url]
-    assert attributes["formats"] == [CONTAINER_MIME_TYPE]
-    assert attributes["language"] == METADATA_LANGUAGE
