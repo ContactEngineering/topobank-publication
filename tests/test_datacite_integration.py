@@ -24,6 +24,8 @@ from django.conf import settings
 from topobank.testing.factories import (SurfaceFactory, Topography1DFactory,
                                         UserFactory)
 
+from topobank_publication.doi_mixin import (CONTAINER_MIME_TYPE,
+                                            METADATA_LANGUAGE)
 from topobank_publication.models import Publication, PublicationCollection
 from topobank_publication.utils import DOICreationException
 
@@ -312,6 +314,36 @@ class TestDataCitePublicationIntegration:
         # Both should reference version in metadata
         assert pub_v1.datacite_json.get("version") == str(pub_v1.version)
         assert pub_v2.datacite_json.get("version") == str(pub_v2.version)
+
+    def test_content_descriptors_survive_the_round_trip(
+        self, datacite_available, datacite_client, datacite_cleanup_registry,
+        minimal_authors, settings
+    ):
+        """`contentUrl` is not part of the kernel-4 schema, only of the API.
+
+        It is therefore excluded from schema validation, which makes this the
+        only check that DataCite really accepts and stores it. The other content
+        descriptors are asserted along with it since they travel together.
+        """
+        settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = None
+        settings.PUBLICATION_DOI_MANDATORY = False
+
+        client, _ = datacite_client
+
+        user = UserFactory()
+        surface = _publishable_surface(created_by=user, name="Content URL Surface")
+        publication = Publication.publish(
+            surface, "cc0-1.0", surface.created_by, minimal_authors
+        )
+
+        publication.create_doi(force_draft=True)
+        datacite_cleanup_registry.append(publication.doi_name)
+
+        attributes = client.get_metadata(publication.doi_name)
+
+        assert attributes["contentUrl"] == [publication.container_url]
+        assert attributes["formats"] == [CONTAINER_MIME_TYPE]
+        assert attributes["language"] == METADATA_LANGUAGE
 
 
 @datacite_not_configured
