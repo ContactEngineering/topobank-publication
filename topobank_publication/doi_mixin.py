@@ -155,21 +155,8 @@ class DOICreationMixin:
         # Build DOI name from prefix and suffix
         doi_name = f"{settings.PUBLICATION_DOI_PREFIX}/{self.get_doi_suffix()}"
 
-        # Get metadata from subclass
-        data = self.get_datacite_metadata(doi_name)
-
-        # Validate against DataCite schema, ignoring the attributes which are
-        # API-only and therefore unknown to the kernel-4 schema
-        if not schema45.validate(
-            {
-                key: value
-                for key, value in data.items()
-                if key not in self.DATACITE_API_ONLY_ATTRIBUTES
-            }
-        ):
-            raise DOICreationException(
-                "Given data does not validate according to DataCite Schema 4.5!"
-            )
+        # Get metadata from subclass and validate it against the DataCite schema
+        data = self._get_validated_metadata(doi_name)
 
         # Determine DOI state
         requested_doi_state = (
@@ -183,6 +170,107 @@ class DOICreationMixin:
         self._save_doi_info(doi_name, data, requested_doi_state)
 
         _log.info(f"Done creating DOI for '{self.short_url}'.")
+
+    def _get_validated_metadata(self, doi_name: str) -> Dict[str, Any]:
+        """
+        Build the DataCite metadata and validate it against the schema.
+
+        Validation ignores the attributes which the DataCite API accepts but
+        which are not part of the kernel-4 schema (see
+        `DATACITE_API_ONLY_ATTRIBUTES`); the schema does not allow additional
+        properties, so validating them would always fail. They are part of the
+        returned metadata, because they do have to be submitted.
+
+        Parameters
+        ----------
+        doi_name : str
+            Full DOI name (prefix/suffix)
+
+        Returns
+        -------
+        dict
+            DataCite metadata, including the API-only attributes
+
+        Raises
+        ------
+        DOICreationException
+            If the metadata does not validate
+        """
+        data = self.get_datacite_metadata(doi_name)
+
+        if not schema45.validate(
+            {
+                key: value
+                for key, value in data.items()
+                if key not in self.DATACITE_API_ONLY_ATTRIBUTES
+            }
+        ):
+            raise DOICreationException(
+                "Given data does not validate according to DataCite Schema 4.5!"
+            )
+
+        return data
+
+    def update_doi_metadata(self) -> bool:
+        """
+        Push regenerated metadata for an already minted DOI to DataCite.
+
+        Improvements to the generated metadata otherwise only reach DOIs minted
+        afterwards. This regenerates the metadata from the current state of the
+        database and replaces the record at DataCite with it.
+
+        The landing page URL registered for the DOI is deliberately left alone:
+        it is not part of the metadata, and `get_full_url` returns the DOI URL
+        itself once a DOI exists, which must never become the target of that
+        same DOI.
+
+        The DOI state is not touched either, so a findable DOI stays findable.
+
+        Returns
+        -------
+        bool
+            True if the metadata at DataCite was replaced, False if it was
+            already up to date and nothing was sent.
+
+        Raises
+        ------
+        DOICreationException
+            If the object has no DOI, if the regenerated metadata does not
+            validate, or if the update fails at DataCite.
+        """
+        if not self.doi_name:
+            raise DOICreationException(
+                f"'{self.short_url}' has no DOI, so there is no metadata to update."
+            )
+
+        data = self._get_validated_metadata(self.doi_name)
+
+        if data == self.datacite_json:
+            _log.info(
+                f"Metadata of DOI '{self.doi_name}' is already up to date, "
+                "not contacting DataCite."
+            )
+            return False
+
+        try:
+            _log.info(f"Updating metadata of DOI '{self.doi_name}' at DataCite...")
+            rest_client = DataCiteRESTClient(
+                username=settings.DATACITE_USERNAME,
+                password=settings.DATACITE_PASSWORD,
+                prefix=settings.PUBLICATION_DOI_PREFIX,
+                url=settings.DATACITE_API_URL,
+            )
+            rest_client.update_doi(doi=self.doi_name, metadata=data)
+        except (DataCiteError, HttpError) as exc:
+            msg = f"Updating metadata of DOI '{self.doi_name}' failed, reason: {exc}"
+            _log.error(msg)
+            raise DOICreationException(msg) from exc
+
+        self.datacite_json = data
+        self.save()
+
+        _log.info(f"Done updating metadata of DOI '{self.doi_name}'.")
+        return True
 
     def _submit_to_datacite(
         self, doi_name: str, data: Dict[str, Any], doi_state: str

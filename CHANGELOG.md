@@ -28,6 +28,9 @@
   date (`Available`), the creation date of the dataset the publication was made from
   (`Created`), the range of measurement dates (`Collected`) and the publishing user
   as a `DataCurator` contributor
+- ENH: New `update_doi_metadata` management command which regenerates the DataCite
+  metadata of already minted DOIs and pushes it to DataCite, so that metadata
+  improvements also reach datasets published earlier
 
 ## 1.11.0 (2026-08-02)
 
