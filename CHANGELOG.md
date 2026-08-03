@@ -19,6 +19,8 @@
   `contentUrl` points at the container download, `formats` reports its MIME type,
   `language` the language of the descriptive metadata, and `sizes` the container size
   once it has been built
+- ENH: DataCite metadata of publications and collections now states the access
+  condition (`info:eu-repo/semantics/openAccess`) next to the license
 
 ## 1.11.0 (2026-08-02)
 
