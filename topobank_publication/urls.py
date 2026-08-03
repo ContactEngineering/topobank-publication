@@ -38,5 +38,14 @@ urlpatterns += [
         view=views.download_container,
         name="download-container",
     ),
+    # GET
+    # * Serve the schema.org description of a published dataset. Also available
+    #   by content negotiation on the `go` route below, but a URL of its own is
+    #   what typed links can point at.
+    path(
+        "<str:short_url>/metadata/",
+        view=views.metadata,
+        name="metadata",
+    ),
     path("<str:short_url>/", view=views.go, name="go"),
 ]

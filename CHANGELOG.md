@@ -15,6 +15,9 @@
   file and bandwidth generation
 - ENH: New `GET /go/publishable/<surface_id>/` endpoint reporting whether a dataset
   can be published and, if not, which measurements are holding it up and why
+- ENH: Published datasets are now described as schema.org JSON-LD, served from the
+  new `GET /go/<short_url>/metadata/` endpoint and by content negotiation on
+  `GET /go/<short_url>/` for `application/ld+json`
 
 ## 1.11.0 (2026-08-02)
 

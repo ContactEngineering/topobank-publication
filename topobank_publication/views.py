@@ -5,7 +5,8 @@ import pydantic
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError
-from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden
+from django.http import (Http404, HttpResponseBadRequest,
+                         HttpResponseForbidden, JsonResponse)
 from django.shortcuts import HttpResponse, get_object_or_404, redirect
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import api_view
@@ -14,12 +15,21 @@ from rest_framework.response import Response
 from topobank.manager.models import Surface
 
 from .models import Publication, PublicationCollection
+from .schema_org import schema_org_dataset
 from .serializers import PublicationCollectionSerializer, PublicationSerializer
 from .utils import (EMPTY_DATASET_MESSAGE, AlreadyPublishedException,
                     NewPublicationTooFastException, PublicationException,
                     describe_unready_measurements, unready_measurements)
 
 _log = logging.getLogger(__name__)
+
+# Media type of the schema.org description of a publication.
+JSONLD_CONTENT_TYPE = "application/ld+json"
+
+# Media types for which the schema.org description is served instead of a
+# redirect. The second one is what DataCite uses for the same representation and
+# what several harvesters ask for.
+JSONLD_ACCEPT_TYPES = (JSONLD_CONTENT_TYPE, "application/vnd.schemaorg.ld+json")
 
 
 @api_view(["POST"])
@@ -250,6 +260,14 @@ def download_container(request, short_url):
     return response
 
 
+def metadata(request, short_url):
+    """Serve the schema.org description of a published dataset as JSON-LD."""
+    pub = get_object_or_404(Publication, short_url=short_url)
+    return JsonResponse(
+        schema_org_dataset(pub, request), content_type=JSONLD_CONTENT_TYPE
+    )
+
+
 def go(request, short_url):
     """Visit a published surface by short url."""
     try:
@@ -257,10 +275,16 @@ def go(request, short_url):
     except Publication.DoesNotExist:
         raise Http404()
 
-    if (
-        "HTTP_ACCEPT" in request.META
-        and "application/json" in request.META["HTTP_ACCEPT"]
-    ):
+    accept = request.META.get("HTTP_ACCEPT", "")
+
+    # Content negotiation. The JSON-LD types are checked first because they are
+    # the more specific ones; note that "application/ld+json" does not contain
+    # "application/json" as a substring.
+    if any(content_type in accept for content_type in JSONLD_ACCEPT_TYPES):
+        return JsonResponse(
+            schema_org_dataset(pub, request), content_type=JSONLD_CONTENT_TYPE
+        )
+    elif "application/json" in accept:
         return redirect(pub.get_api_url())
     else:
         return redirect(
