@@ -15,6 +15,8 @@
   file and bandwidth generation
 - ENH: New `GET /go/publishable/<surface_id>/` endpoint reporting whether a dataset
   can be published and, if not, which measurements are holding it up and why
+- ENH: New `GET /go/sitemap.xml` listing all published datasets and collections, so
+  that crawlers can discover them without executing the JavaScript of the app
 
 ## 1.11.0 (2026-08-02)
 

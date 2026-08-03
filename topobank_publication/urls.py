@@ -2,7 +2,7 @@ from django.conf import settings
 from django.urls import path
 from rest_framework.routers import DefaultRouter, SimpleRouter
 
-from topobank_publication import views, oaipmh_views
+from topobank_publication import views, oaipmh_views, sitemap_views
 
 router = DefaultRouter() if settings.DEBUG else SimpleRouter()
 router.register(r"publication", views.PublicationViewSet, basename="publication-api")
@@ -30,6 +30,11 @@ urlpatterns += [
     ),
     path("collection/<str:short_url>/", view=views.go_collection, name="go-collection"),
     path("oai/", view=oaipmh_views.oai_pmh_view, name="oai-pmh"),
+    # GET
+    # * Sitemap of all published datasets, so that crawlers can discover them
+    #   without executing the JavaScript of the app. Declared before the
+    #   catch-all `go` route below.
+    path("sitemap.xml", view=sitemap_views.sitemap_view, name="sitemap"),
     # GET
     # * Redirect to the archived container of a published dataset. Must be
     #   declared before the catch-all `go` route below.
