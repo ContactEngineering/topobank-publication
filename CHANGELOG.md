@@ -1,12 +1,9 @@
 # Changelog for plugin *topobank-publication*
 
-## 1.13.0 (2026-08-03)
+## 1.12.0 (2026-08-03)
 
 - ENH: The surface serializer reports `version` and `nb_versions`, so the dataset
   list can say which version a row is and that there are others
-
-## 1.12.0 (2026-08-03)
-
 - API: Publication now requires every measurement of a dataset to have been
   processed successfully *and* to have complete metadata in the sense of
   `Topography.is_metadata_complete`
