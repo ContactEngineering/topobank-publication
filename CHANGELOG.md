@@ -3,13 +3,18 @@
 ## Unreleased
 
 - API: Publication now requires every measurement of a dataset to have been
-  processed successfully. Datasets with failed, still-processing or not-yet-started
-  measurements, and datasets without any measurement, are rejected with HTTP 400
-  where they were previously published. Publication creates a permanently
-  read-only copy, so a measurement that cannot be inspected would otherwise stay
-  broken forever under an already minted DOI
+  processed successfully *and* to have complete metadata in the sense of
+  `Topography.is_metadata_complete`. Datasets with failed, still-processing or
+  not-yet-started measurements, with measurements whose physical size or unit is
+  missing, and datasets without any measurement, are rejected with HTTP 400 where
+  they were previously published. Publication creates a permanently read-only
+  copy, so such a measurement would otherwise stay broken forever under an already
+  minted DOI. Note that a task state of SUCCESS on its own is not sufficient:
+  unless `TOPOBANK_REJECT_INCOMPLETE_METADATA` is set, inspecting a file with
+  missing metadata succeeds but silently skips thumbnail, deepzoom, squeezed data
+  file and bandwidth generation
 - ENH: New `GET /go/publishable/<surface_id>/` endpoint reporting whether a dataset
-  can be published and, if not, which measurements are holding it up
+  can be published and, if not, which measurements are holding it up and why
 
 ## 1.11.0 (2026-08-02)
 

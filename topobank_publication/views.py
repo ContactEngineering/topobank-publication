@@ -128,12 +128,17 @@ def publication_readiness(request, surface_id):
             "blockers": blockers,
             "unready_measurements": [
                 {
-                    "id": topography.id,
-                    "name": topography.name,
-                    "task_state": topography.task_state,
-                    "task_state_display": topography.get_task_state_display(),
+                    "id": measurement.topography.id,
+                    "name": measurement.topography.name,
+                    "reason": measurement.reason,
+                    "detail": measurement.describe(),
+                    "task_state": measurement.topography.task_state,
+                    "task_state_display": (
+                        measurement.topography.get_task_state_display()
+                    ),
+                    "missing_metadata": list(measurement.missing_metadata),
                 }
-                for topography in not_ready
+                for measurement in not_ready
             ],
         }
     )

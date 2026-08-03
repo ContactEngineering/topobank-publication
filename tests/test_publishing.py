@@ -510,6 +510,70 @@ def test_publishing_blocked_by_unfinished_measurement(example_authors, task_stat
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "missing_field,expected_label",
+    [("size_x", "physical size"), ("unit", "unit")],
+)
+def test_publishing_blocked_by_incomplete_metadata(
+    example_authors, missing_field, expected_label
+):
+    """A measurement can be SUCCESS and still lack the metadata to read it.
+
+    `refresh_cache` skips the derived-file generation for such a measurement but
+    still reports SUCCESS, so the task state alone does not catch this.
+    """
+    user = UserFactory()
+    surface = SurfaceFactory(created_by=user)
+    topography = Topography2DFactory(surface=surface, name="no-metadata")
+    # Bypass save() so that neither the task state nor the cache is touched: we
+    # want precisely the SUCCESS-but-incomplete combination.
+    Topography.objects.filter(pk=topography.pk).update(**{missing_field: None})
+
+    topography.refresh_from_db()
+    assert topography.task_state == Topography.SUCCESS
+    assert not topography.is_metadata_complete
+
+    with pytest.raises(MeasurementsNotReadyException) as exc_info:
+        Publication.publish(surface, "cc0-1.0", user, example_authors)
+
+    assert "no-metadata" in str(exc_info.value)
+    assert expected_label in str(exc_info.value)
+
+    (measurement,) = exc_info.value.measurements
+    assert measurement.reason == "incomplete-metadata"
+    assert measurement.missing_metadata == (expected_label,)
+
+    assert Publication.objects.count() == 0
+    assert Surface.objects.count() == 1
+
+
+def test_publication_readiness_reports_incomplete_metadata(
+    api_client, one_line_scan
+):
+    Topography.objects.filter(pk=one_line_scan.pk).update(unit=None)
+
+    api_client.force_login(one_line_scan.created_by)
+    response = api_client.get(
+        reverse(
+            "publication:publication-readiness",
+            kwargs=dict(surface_id=one_line_scan.surface.id),
+        )
+    )
+
+    assert response.status_code == 200
+    assert not response.data["publishable"]
+    assert [blocker["code"] for blocker in response.data["blockers"]] == [
+        "measurements-not-ready"
+    ]
+    (measurement,) = response.data["unready_measurements"]
+    assert measurement["reason"] == "incomplete-metadata"
+    assert measurement["missing_metadata"] == ["unit"]
+    assert measurement["detail"] == "missing unit"
+    # The measurement did process successfully; only its metadata is lacking.
+    assert measurement["task_state"] == Topography.SUCCESS
+
+
+@pytest.mark.django_db
 def test_publishing_allowed_when_all_measurements_successful(example_authors):
     user = UserFactory()
     surface = SurfaceFactory(created_by=user)
@@ -568,8 +632,11 @@ def test_publication_readiness_endpoint(api_client, one_line_scan):
     (measurement,) = response.data["unready_measurements"]
     assert measurement["id"] == one_line_scan.id
     assert measurement["name"] == one_line_scan.name
+    assert measurement["reason"] == "not-processed"
+    assert measurement["detail"] == "failure"
     assert measurement["task_state"] == Topography.FAILURE
     assert measurement["task_state_display"] == "failure"
+    assert measurement["missing_metadata"] == []
 
 
 @override_settings(PUBLICATION_ENABLED=False)
