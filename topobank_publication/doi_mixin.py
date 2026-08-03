@@ -23,6 +23,19 @@ CONTAINER_MIME_TYPE = "application/zip"
 # is English-only, as is all of its guidance to authors.
 METADATA_LANGUAGE = "en"
 
+# Access rights of a published dataset, expressed with the OpenAIRE access
+# rights vocabulary (https://guidelines.openaire.eu). Published datasets are
+# world-readable without registration, embargo or any other condition.
+#
+# This is deliberately kept separate from the license: a license states what
+# may be done with the data once obtained, access rights state whether and
+# under which conditions it can be obtained at all. Tools which look for access
+# conditions discard entries that look like a license.
+OPEN_ACCESS_RIGHTS = {
+    "rights": "openAccess",
+    "rightsUri": "info:eu-repo/semantics/openAccess",
+}
+
 
 class DOICreationMixin:
     """
@@ -349,7 +362,8 @@ class PublicationDOIMixin(DOICreationMixin):
                     "rightsIdentifier": license_infos["spdx_identifier"],
                     "rightsIdentifierScheme": "SPDX",
                     "lang": "en",
-                }
+                },
+                OPEN_ACCESS_RIGHTS,
             ],
             "descriptions": [
                 {
@@ -508,7 +522,8 @@ class PublicationCollectionDOIMixin(DOICreationMixin):
                     "rightsIdentifier": license_infos["spdx_identifier"],
                     "rightsIdentifierScheme": "SPDX",
                     "lang": "en",
-                }
+                },
+                OPEN_ACCESS_RIGHTS,
             ],
             "schemaVersion": "http://datacite.org/schema/kernel-4",
         }
