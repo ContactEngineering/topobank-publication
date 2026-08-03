@@ -11,6 +11,7 @@ from typing import Any, Dict
 from datacite import DataCiteRESTClient, schema45
 from datacite.errors import DataCiteError, HttpError
 from django.conf import settings
+from django.db import models
 
 from .utils import DOICreationException
 
@@ -352,7 +353,8 @@ class PublicationDOIMixin(DOICreationMixin):
             "language": METADATA_LANGUAGE,
             # Recommended/Optional fields
             "subjects": self._get_common_subjects(),
-            "dates": [{"dateType": "Submitted", "date": self.datetime.isoformat()}],
+            "dates": self._build_dates(),
+            "contributors": self._build_contributors(),
             "version": str(self.version),
             "relatedIdentifiers": self._build_related_identifiers(),
             "rightsList": [
@@ -441,6 +443,113 @@ class PublicationDOIMixin(DOICreationMixin):
             )
 
         return related
+
+    def _build_dates(self) -> list:
+        """
+        Build the list of dates describing the history of the dataset.
+
+        Only the submission date was reported so far, which says when the
+        dataset was published but nothing about where the data comes from.
+        Report, as far as the application knows them:
+
+        - `Submitted`/`Available`: when the dataset was published. Publication
+          is immediate, so the two coincide, but `Available` is what carries the
+          precise publication date; `publicationYear` alone is only a year.
+        - `Created`: when the dataset it was published from was created. The
+          published dataset itself is a copy made at publication time, so its
+          own creation date would just repeat the publication date.
+        - `Collected`: when the measurements were taken, as a single date or as
+          an ISO 8601 interval.
+
+        Returns
+        -------
+        list
+            List of DataCite date dictionaries
+        """
+        published = self.datetime.isoformat()
+        dates = [
+            {"dateType": "Submitted", "date": published},
+            {
+                "dateType": "Available",
+                "date": published,
+                "dateInformation": "Date the dataset was published",
+            },
+        ]
+
+        original_surface = self.original_surface
+        if original_surface is not None and original_surface.created_at is not None:
+            dates.append(
+                {
+                    "dateType": "Created",
+                    "date": original_surface.created_at.isoformat(),
+                    "dateInformation": (
+                        "Date the dataset was created in contact.engineering"
+                    ),
+                }
+            )
+
+        measured = self._get_measurement_date_range()
+        if measured is not None:
+            dates.append(
+                {
+                    "dateType": "Collected",
+                    "date": measured,
+                    "dateInformation": "Date the measurements were taken",
+                }
+            )
+
+        return dates
+
+    def _get_measurement_date_range(self) -> str:
+        """
+        Return the range of measurement dates as an ISO 8601 string.
+
+        Returns
+        -------
+        str or None
+            A single date if all measurements were taken on the same day, an
+            interval `<first>/<last>` if not, and None if no measurement of
+            this dataset has a measurement date.
+        """
+        bounds = self.surface.topography_set.exclude(measurement_date=None).aggregate(
+            first=models.Min("measurement_date"), last=models.Max("measurement_date")
+        )
+        first, last = bounds["first"], bounds["last"]
+        if first is None:
+            return None
+        if first == last:
+            return first.isoformat()
+        return f"{first.isoformat()}/{last.isoformat()}"
+
+    def _build_contributors(self) -> list:
+        """
+        Build the list of contributors, i.e. who deposited the dataset.
+
+        The publishing user is not necessarily one of the authors, and their
+        role is a different one: the authors created the data, the publisher
+        put it into the repository. DataCite calls the latter a `DataCurator`.
+
+        Returns
+        -------
+        list
+            List of DataCite contributor dictionaries
+        """
+        contributor = {
+            "contributorType": "DataCurator",
+            "name": f"{self.publisher.last_name}, {self.publisher.first_name}",
+            "nameType": "Personal",
+            "givenName": self.publisher.first_name,
+            "familyName": self.publisher.last_name,
+        }
+        if self.publisher_orcid_id:
+            contributor["nameIdentifiers"] = [
+                {
+                    "schemeUri": "https://orcid.org",
+                    "nameIdentifierScheme": "ORCID",
+                    "nameIdentifier": f"https://orcid.org/{self.publisher_orcid_id}",
+                }
+            ]
+        return [contributor]
 
     def _build_creators_from_authors(self) -> list:
         """
@@ -594,7 +703,14 @@ class PublicationCollectionDOIMixin(DOICreationMixin):
             "types": {"resourceType": "Dataset", "resourceTypeGeneral": "Dataset"},
             # Recommended/Optional fields
             "subjects": PublicationDOIMixin._get_common_subjects(),
-            "dates": [{"dateType": "Submitted", "date": self.datetime.isoformat()}],
+            "dates": [
+                {"dateType": "Submitted", "date": self.datetime.isoformat()},
+                {
+                    "dateType": "Available",
+                    "date": self.datetime.isoformat(),
+                    "dateInformation": "Date the collection was published",
+                },
+            ],
             "relatedIdentifiers": self._build_related_identifiers(),
             "rightsList": [
                 {

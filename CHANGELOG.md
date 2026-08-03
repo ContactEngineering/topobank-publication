@@ -24,6 +24,10 @@
 - ENH: DataCite metadata now expresses the relations between published objects:
   the version chain of a dataset (`IsNewVersionOf`/`IsPreviousVersionOf`) and the
   membership of a dataset in a collection (`IsPartOf`/`HasPart`)
+- ENH: DataCite metadata now carries provenance information: the precise publication
+  date (`Available`), the creation date of the dataset the publication was made from
+  (`Created`), the range of measurement dates (`Collected`) and the publishing user
+  as a `DataCurator` contributor
 
 ## 1.11.0 (2026-08-02)
 
