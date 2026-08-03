@@ -16,6 +16,13 @@ from .utils import DOICreationException
 
 _log = logging.getLogger(__name__)
 
+# MIME type of the published container archive, as served by the download view.
+CONTAINER_MIME_TYPE = "application/zip"
+
+# Language of the descriptive metadata (titles, descriptions). The application
+# is English-only, as is all of its guidance to authors.
+METADATA_LANGUAGE = "en"
+
 
 class DOICreationMixin:
     """
@@ -45,6 +52,16 @@ class DOICreationMixin:
     DOI_STATE_DRAFT = "draft"
     DOI_STATE_REGISTERED = "registered"
     DOI_STATE_FINDABLE = "findable"
+
+    # Attributes which the DataCite REST API accepts and exposes, but which are
+    # not part of the DataCite kernel-4 metadata schema. The kernel-4 JSON
+    # schema sets "additionalProperties": false, so these have to be excluded
+    # before validating; they are still submitted to the API.
+    #
+    # `contentUrl` is what makes a DOI record point at the actual data (rather
+    # than only at the landing page). FAIR assessment tools read it to locate
+    # the data content, see https://schema.org/contentUrl.
+    DATACITE_API_ONLY_ATTRIBUTES = ("contentUrl",)
 
     def get_doi_suffix(self) -> str:
         """
@@ -127,8 +144,15 @@ class DOICreationMixin:
         # Get metadata from subclass
         data = self.get_datacite_metadata(doi_name)
 
-        # Validate against DataCite schema
-        if not schema45.validate(data):
+        # Validate against DataCite schema, ignoring the attributes which are
+        # API-only and therefore unknown to the kernel-4 schema
+        if not schema45.validate(
+            {
+                key: value
+                for key, value in data.items()
+                if key not in self.DATACITE_API_ONLY_ATTRIBUTES
+            }
+        ):
             raise DOICreationException(
                 "Given data does not validate according to DataCite Schema 4.5!"
             )
@@ -298,7 +322,7 @@ class PublicationDOIMixin(DOICreationMixin):
         # Build creators from authors_json
         creators = self._build_creators_from_authors()
 
-        return {
+        metadata = {
             # Mandatory fields
             "doi": doi_name,
             "creators": creators,
@@ -306,6 +330,13 @@ class PublicationDOIMixin(DOICreationMixin):
             "publisher": {"name": "contact.engineering"},
             "publicationYear": str(self.datetime.year),
             "types": {"resourceType": "Dataset", "resourceTypeGeneral": "Dataset"},
+            # Descriptors of the data itself: where it can be downloaded, in
+            # which format and how large it is. Without these, the DOI record
+            # only describes the landing page and gives no machine-readable
+            # route to the data.
+            "contentUrl": [self.container_url],
+            "formats": [CONTAINER_MIME_TYPE],
+            "language": METADATA_LANGUAGE,
             # Recommended/Optional fields
             "subjects": self._get_common_subjects(),
             "dates": [{"dateType": "Submitted", "date": self.datetime.isoformat()}],
@@ -328,6 +359,15 @@ class PublicationDOIMixin(DOICreationMixin):
             ],
             "schemaVersion": "http://datacite.org/schema/kernel-4",
         }
+
+        # The container is built asynchronously after publication, so its size
+        # is usually not known yet when the DOI is minted. Report it whenever it
+        # is available; regenerating the metadata later fills it in.
+        container_size = self.container_size
+        if container_size is not None:
+            metadata["sizes"] = [f"{container_size} bytes"]
+
+        return metadata
 
     def _build_creators_from_authors(self) -> list:
         """
