@@ -21,7 +21,8 @@ import logging
 import pytest
 from datacite import DataCiteRESTClient
 from django.conf import settings
-from topobank.testing.factories import SurfaceFactory, UserFactory
+from topobank.testing.factories import (SurfaceFactory, Topography1DFactory,
+                                        UserFactory)
 
 from topobank_publication.models import Publication, PublicationCollection
 from topobank_publication.utils import DOICreationException
@@ -30,6 +31,18 @@ from .conftest import (datacite_not_configured, get_datacite_skip_reason,
                        is_datacite_configured)
 
 _log = logging.getLogger(__name__)
+
+
+def _publishable_surface(**kwargs):
+    """Create a surface that satisfies the preconditions for publication.
+
+    `SurfaceFactory` on its own produces an empty dataset, which cannot be
+    published: a dataset needs at least one measurement whose processing
+    succeeded and whose metadata is complete.
+    """
+    surface = SurfaceFactory(**kwargs)
+    Topography1DFactory(surface=surface)
+    return surface
 
 
 def _can_connect_to_datacite():
@@ -117,7 +130,7 @@ class TestDataCitePublicationIntegration:
         settings.PUBLICATION_DOI_MANDATORY = False  # We'll call create_doi manually
 
         user = UserFactory()
-        surface = SurfaceFactory(created_by=user, name="Test Surface for DOI")
+        surface = _publishable_surface(created_by=user, name="Test Surface for DOI")
 
         # Create publication without DOI
         publication = Publication.publish(
@@ -173,7 +186,7 @@ class TestDataCitePublicationIntegration:
         ]
 
         user = UserFactory()
-        surface = SurfaceFactory(
+        surface = _publishable_surface(
             created_by=user,
             name="Surface with Full Author Metadata",
             description="Test description for DataCite",
@@ -214,7 +227,7 @@ class TestDataCitePublicationIntegration:
 
         for license_key in licenses:
             user = UserFactory()
-            surface = SurfaceFactory(
+            surface = _publishable_surface(
                 created_by=user, name=f"Test Surface - {license_key}"
             )
 
@@ -237,7 +250,7 @@ class TestDataCitePublicationIntegration:
         settings.PUBLICATION_DOI_MANDATORY = False
 
         user = UserFactory()
-        surface = SurfaceFactory(
+        surface = _publishable_surface(
             created_by=user,
             name="Schema Validation Test",
             description="Testing that metadata validates correctly",
@@ -270,7 +283,7 @@ class TestDataCitePublicationIntegration:
         settings.PUBLICATION_DOI_MANDATORY = False
 
         user = UserFactory()
-        surface = SurfaceFactory(created_by=user, name="Versioned Surface")
+        surface = _publishable_surface(created_by=user, name="Versioned Surface")
 
         # Create first version
         pub_v1 = Publication.publish(
@@ -316,10 +329,10 @@ class TestDataCitePublicationCollectionIntegration:
         user = UserFactory()
 
         # Create two publications first
-        surface1 = SurfaceFactory(created_by=user, name="Collection Surface 1")
+        surface1 = _publishable_surface(created_by=user, name="Collection Surface 1")
         pub1 = Publication.publish(surface1, "cc0-1.0", user, minimal_authors)
 
-        surface2 = SurfaceFactory(created_by=user, name="Collection Surface 2")
+        surface2 = _publishable_surface(created_by=user, name="Collection Surface 2")
         pub2 = Publication.publish(surface2, "cc0-1.0", user, minimal_authors)
 
         # Create collection without DOI
@@ -360,7 +373,7 @@ class TestDataCitePublicationCollectionIntegration:
         )
         # UserFactory automatically creates an ORCID social account
 
-        surface = SurfaceFactory(created_by=user, name="Surface for Collection")
+        surface = _publishable_surface(created_by=user, name="Surface for Collection")
         pub = Publication.publish(surface, "cc0-1.0", user, minimal_authors)
 
         collection = PublicationCollection.publish(
@@ -424,7 +437,9 @@ class TestDataCitePublicationCollectionIntegration:
 
         user = UserFactory()
 
-        surface = SurfaceFactory(created_by=user, name="Surface for Duplicate Test")
+        surface = _publishable_surface(
+            created_by=user, name="Surface for Duplicate Test"
+        )
         pub = Publication.publish(surface, "cc0-1.0", user, minimal_authors)
 
         # Create first collection
@@ -464,7 +479,7 @@ class TestDataCiteErrorHandling:
             settings.DATACITE_PASSWORD = "invalid_password"
 
             user = UserFactory()
-            surface = SurfaceFactory(created_by=user, name="Error Test Surface")
+            surface = _publishable_surface(created_by=user, name="Error Test Surface")
             publication = Publication.publish(
                 surface, "cc0-1.0", surface.created_by, minimal_authors
             )
@@ -488,7 +503,7 @@ class TestDataCiteErrorHandling:
             settings.DATACITE_API_URL = "https://invalid.datacite.url/"
 
             user = UserFactory()
-            surface = SurfaceFactory(created_by=user, name="Error Test Surface 2")
+            surface = _publishable_surface(created_by=user, name="Error Test Surface 2")
             publication = Publication.publish(
                 surface, "cc0-1.0", surface.created_by, minimal_authors
             )
@@ -516,7 +531,9 @@ class TestDataCiteDOIVerification:
         client, _ = datacite_client
 
         user = UserFactory()
-        surface = SurfaceFactory(created_by=user, name="Verification Test Surface")
+        surface = _publishable_surface(
+            created_by=user, name="Verification Test Surface"
+        )
         publication = Publication.publish(
             surface, "cc0-1.0", surface.created_by, minimal_authors
         )
@@ -542,7 +559,9 @@ class TestDataCiteDOIVerification:
         # UserFactory automatically creates an ORCID social account
         user = UserFactory()
 
-        surface = SurfaceFactory(created_by=user, name="Collection Verification Surface")
+        surface = _publishable_surface(
+            created_by=user, name="Collection Verification Surface"
+        )
         pub = Publication.publish(surface, "cc0-1.0", user, minimal_authors)
 
         collection = PublicationCollection.publish(
