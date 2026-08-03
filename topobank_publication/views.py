@@ -15,16 +15,14 @@ from rest_framework.response import Response
 from topobank.manager.models import Surface
 
 from .models import Publication, PublicationCollection
-from .schema_org import schema_org_dataset
+from .schema_org import JSONLD_CONTENT_TYPE, schema_org_dataset
 from .serializers import PublicationCollectionSerializer, PublicationSerializer
+from .signposting import add_signposting
 from .utils import (EMPTY_DATASET_MESSAGE, AlreadyPublishedException,
                     NewPublicationTooFastException, PublicationException,
                     describe_unready_measurements, unready_measurements)
 
 _log = logging.getLogger(__name__)
-
-# Media type of the schema.org description of a publication.
-JSONLD_CONTENT_TYPE = "application/ld+json"
 
 # Media types for which the schema.org description is served instead of a
 # redirect. The second one is what DataCite uses for the same representation and
@@ -249,7 +247,7 @@ def download_container(request, short_url):
         pub.renew_container()
 
     if getattr(settings, "USE_S3_STORAGE", False):
-        return redirect(pub.container.url)
+        return add_signposting(redirect(pub.container.url), pub, request)
 
     response = HttpResponse(
         pub.container.read(), content_type="application/x-zip-compressed"
@@ -257,14 +255,18 @@ def download_container(request, short_url):
     response["Content-Disposition"] = (
         f'attachment; filename="{os.path.basename(pub.container_storage_path)}"'
     )
-    return response
+    return add_signposting(response, pub, request)
 
 
 def metadata(request, short_url):
     """Serve the schema.org description of a published dataset as JSON-LD."""
     pub = get_object_or_404(Publication, short_url=short_url)
-    return JsonResponse(
-        schema_org_dataset(pub, request), content_type=JSONLD_CONTENT_TYPE
+    return add_signposting(
+        JsonResponse(
+            schema_org_dataset(pub, request), content_type=JSONLD_CONTENT_TYPE
+        ),
+        pub,
+        request,
     )
 
 
@@ -281,15 +283,20 @@ def go(request, short_url):
     # the more specific ones; note that "application/ld+json" does not contain
     # "application/json" as a substring.
     if any(content_type in accept for content_type in JSONLD_ACCEPT_TYPES):
-        return JsonResponse(
+        response = JsonResponse(
             schema_org_dataset(pub, request), content_type=JSONLD_CONTENT_TYPE
         )
     elif "application/json" in accept:
-        return redirect(pub.get_api_url())
+        response = redirect(pub.get_api_url())
     else:
-        return redirect(
+        response = redirect(
             f"/ui/dataset-detail/{pub.surface.pk}/"
         )  # <- topobank does not know this
+
+    # Signpost the dataset on every representation of this route, including the
+    # redirects: a client which only issues a HEAD request here can then still
+    # find the identifier, the metadata and the data.
+    return add_signposting(response, pub, request)
 
 
 class PublicationViewSet(

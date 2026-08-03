@@ -23,6 +23,9 @@ METADATA_LANGUAGE = "en"
 # MIME type of the published container archive, as served by the download view.
 CONTAINER_MIME_TYPE = "application/zip"
 
+# Media type this description is served as.
+JSONLD_CONTENT_TYPE = "application/ld+json"
+
 CATALOG = {
     "@type": "DataCatalog",
     "name": "contact.engineering",
