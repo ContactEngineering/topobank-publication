@@ -354,6 +354,7 @@ class PublicationDOIMixin(DOICreationMixin):
             "subjects": self._get_common_subjects(),
             "dates": [{"dateType": "Submitted", "date": self.datetime.isoformat()}],
             "version": str(self.version),
+            "relatedIdentifiers": self._build_related_identifiers(),
             "rightsList": [
                 {
                     "rights": license_infos["title"],
@@ -382,6 +383,64 @@ class PublicationDOIMixin(DOICreationMixin):
             metadata["sizes"] = [f"{container_size} bytes"]
 
         return metadata
+
+    def _build_related_identifiers(self) -> list:
+        """
+        Build the list of qualified references to related publications.
+
+        Two kinds of relation are known to the application:
+
+        - other versions of the same dataset, i.e. publications sharing the
+          same original surface, and
+        - the publication collections this publication belongs to.
+
+        Publications and collections without a DOI are skipped: an unminted
+        publication has no identifier to point at.
+
+        Returns
+        -------
+        list
+            List of DataCite relatedIdentifier dictionaries
+        """
+        related = []
+
+        if self.original_surface_id is not None:
+            other_versions = (
+                self.__class__.objects.filter(
+                    original_surface_id=self.original_surface_id
+                )
+                .exclude(pk=self.pk)
+                .exclude(doi_name="")
+                .order_by("version")
+            )
+            for other in other_versions:
+                related.append(
+                    {
+                        "relatedIdentifier": other.doi_name,
+                        "relatedIdentifierType": "DOI",
+                        "relationType": (
+                            "IsNewVersionOf"
+                            if other.version < self.version
+                            else "IsPreviousVersionOf"
+                        ),
+                        "resourceTypeGeneral": "Dataset",
+                    }
+                )
+
+        collections = (
+            self.publication_collection.exclude(doi_name="").order_by("pk").all()
+        )
+        for collection in collections:
+            related.append(
+                {
+                    "relatedIdentifier": collection.doi_name,
+                    "relatedIdentifierType": "DOI",
+                    "relationType": "IsPartOf",
+                    "resourceTypeGeneral": "Collection",
+                }
+            )
+
+        return related
 
     def _build_creators_from_authors(self) -> list:
         """
@@ -462,6 +521,28 @@ class PublicationCollectionDOIMixin(DOICreationMixin):
         """Return DOI suffix for collections: 'ce-coll-{short_url}'."""
         return f"ce-coll-{self.short_url}"
 
+    def _build_related_identifiers(self) -> list:
+        """
+        Build qualified references to the publications this collection bundles.
+
+        Members without a DOI are skipped, as they have no identifier to point
+        at. A collection is immutable, so this list cannot go stale.
+
+        Returns
+        -------
+        list
+            List of DataCite relatedIdentifier dictionaries
+        """
+        return [
+            {
+                "relatedIdentifier": publication.doi_name,
+                "relatedIdentifierType": "DOI",
+                "relationType": "HasPart",
+                "resourceTypeGeneral": "Dataset",
+            }
+            for publication in self.publications.exclude(doi_name="").order_by("pk")
+        ]
+
     def get_datacite_metadata(self, doi_name: str) -> Dict[str, Any]:
         """
         Build DataCite metadata for a PublicationCollection.
@@ -514,6 +595,7 @@ class PublicationCollectionDOIMixin(DOICreationMixin):
             # Recommended/Optional fields
             "subjects": PublicationDOIMixin._get_common_subjects(),
             "dates": [{"dateType": "Submitted", "date": self.datetime.isoformat()}],
+            "relatedIdentifiers": self._build_related_identifiers(),
             "rightsList": [
                 {
                     "rights": license_infos["title"],

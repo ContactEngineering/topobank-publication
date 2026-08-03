@@ -21,6 +21,9 @@
   once it has been built
 - ENH: DataCite metadata of publications and collections now states the access
   condition (`info:eu-repo/semantics/openAccess`) next to the license
+- ENH: DataCite metadata now expresses the relations between published objects:
+  the version chain of a dataset (`IsNewVersionOf`/`IsPreviousVersionOf`) and the
+  membership of a dataset in a collection (`IsPartOf`/`HasPart`)
 
 ## 1.11.0 (2026-08-02)
 
