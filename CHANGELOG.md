@@ -4,15 +4,7 @@
 
 - API: Publication now requires every measurement of a dataset to have been
   processed successfully *and* to have complete metadata in the sense of
-  `Topography.is_metadata_complete`. Datasets with failed, still-processing or
-  not-yet-started measurements, with measurements whose physical size or unit is
-  missing, and datasets without any measurement, are rejected with HTTP 400 where
-  they were previously published. Publication creates a permanently read-only
-  copy, so such a measurement would otherwise stay broken forever under an already
-  minted DOI. Note that a task state of SUCCESS on its own is not sufficient:
-  unless `TOPOBANK_REJECT_INCOMPLETE_METADATA` is set, inspecting a file with
-  missing metadata succeeds but silently skips thumbnail, deepzoom, squeezed data
-  file and bandwidth generation
+  `Topography.is_metadata_complete`
 - ENH: New `GET /go/publishable/<surface_id>/` endpoint reporting whether a dataset
   can be published and, if not, which measurements are holding it up and why
 - ENH: Published datasets are now described as schema.org JSON-LD, served from the
@@ -20,6 +12,22 @@
   `GET /go/<short_url>/` for `application/ld+json`
 - ENH: The `/go/` routes now carry signposting typed links (`cite-as`, `describedby`,
   `item`, `license`, `author`, `type`) in the HTTP `Link` header
+- ENH: DataCite metadata now describes the data itself and not just its landing page:
+  `contentUrl` points at the container download, `formats` reports its MIME type,
+  `language` the language of the descriptive metadata, and `sizes` the container size
+  once it has been built
+- ENH: DataCite metadata of publications and collections now states the access
+  condition (`info:eu-repo/semantics/openAccess`) next to the license
+- ENH: DataCite metadata now expresses the relations between published objects:
+  the version chain of a dataset (`IsNewVersionOf`/`IsPreviousVersionOf`) and the
+  membership of a dataset in a collection (`IsPartOf`/`HasPart`)
+- ENH: DataCite metadata now carries provenance information: the precise publication
+  date (`Available`), the creation date of the dataset the publication was made from
+  (`Created`), the range of measurement dates (`Collected`) and the publishing user
+  as a `DataCurator` contributor
+- ENH: New `update_doi_metadata` management command which regenerates the DataCite
+  metadata of already minted DOIs and pushes it to DataCite, so that metadata
+  improvements also reach datasets published earlier
 
 ## 1.11.0 (2026-08-02)
 

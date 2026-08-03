@@ -262,6 +262,35 @@ class Publication(PublicationDOIMixin, models.Model):
         return f"{self.storage_prefix}/ce-{self.short_url}.zip"
 
     @property
+    def container_url(self):
+        """Return the permanent URL under which the container can be downloaded.
+
+        This URL is stable and always valid, even before the container file has
+        actually been built: the download view creates the container on demand
+        if it does not exist yet.
+        """
+        return urljoin(settings.PUBLICATION_URL_PREFIX, f"{self.short_url}/download/")
+
+    @property
+    def container_size(self):
+        """Return size of the container file in bytes, or None if unavailable.
+
+        The container is built asynchronously after publication, so it is
+        normally absent at the time the DOI is minted. It can also have gone
+        missing from storage, which makes `has_container` raise.
+        """
+        try:
+            if not self.has_container:
+                return None
+        except Exception:
+            _log.warning(
+                f"Could not determine container size for publication "
+                f"'{self.short_url}'."
+            )
+            return None
+        return self.container.size
+
+    @property
     def doi_url(self):
         """Return DOI as URL string or return None if DOI hasn't been generated yet."""
         # This depends on in which state the DOI -

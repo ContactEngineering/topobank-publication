@@ -11,10 +11,31 @@ from typing import Any, Dict
 from datacite import DataCiteRESTClient, schema45
 from datacite.errors import DataCiteError, HttpError
 from django.conf import settings
+from django.db import models
 
 from .utils import DOICreationException
 
 _log = logging.getLogger(__name__)
+
+# MIME type of the published container archive, as served by the download view.
+CONTAINER_MIME_TYPE = "application/zip"
+
+# Language of the descriptive metadata (titles, descriptions). The application
+# is English-only, as is all of its guidance to authors.
+METADATA_LANGUAGE = "en"
+
+# Access rights of a published dataset, expressed with the OpenAIRE access
+# rights vocabulary (https://guidelines.openaire.eu). Published datasets are
+# world-readable without registration, embargo or any other condition.
+#
+# This is deliberately kept separate from the license: a license states what
+# may be done with the data once obtained, access rights state whether and
+# under which conditions it can be obtained at all. Tools which look for access
+# conditions discard entries that look like a license.
+OPEN_ACCESS_RIGHTS = {
+    "rights": "openAccess",
+    "rightsUri": "info:eu-repo/semantics/openAccess",
+}
 
 
 class DOICreationMixin:
@@ -45,6 +66,16 @@ class DOICreationMixin:
     DOI_STATE_DRAFT = "draft"
     DOI_STATE_REGISTERED = "registered"
     DOI_STATE_FINDABLE = "findable"
+
+    # Attributes which the DataCite REST API accepts and exposes, but which are
+    # not part of the DataCite kernel-4 metadata schema. The kernel-4 JSON
+    # schema sets "additionalProperties": false, so these have to be excluded
+    # before validating; they are still submitted to the API.
+    #
+    # `contentUrl` is what makes a DOI record point at the actual data (rather
+    # than only at the landing page). FAIR assessment tools read it to locate
+    # the data content, see https://schema.org/contentUrl.
+    DATACITE_API_ONLY_ATTRIBUTES = ("contentUrl",)
 
     def get_doi_suffix(self) -> str:
         """
@@ -124,14 +155,8 @@ class DOICreationMixin:
         # Build DOI name from prefix and suffix
         doi_name = f"{settings.PUBLICATION_DOI_PREFIX}/{self.get_doi_suffix()}"
 
-        # Get metadata from subclass
-        data = self.get_datacite_metadata(doi_name)
-
-        # Validate against DataCite schema
-        if not schema45.validate(data):
-            raise DOICreationException(
-                "Given data does not validate according to DataCite Schema 4.5!"
-            )
+        # Get metadata from subclass and validate it against the DataCite schema
+        data = self._get_validated_metadata(doi_name)
 
         # Determine DOI state
         requested_doi_state = (
@@ -145,6 +170,107 @@ class DOICreationMixin:
         self._save_doi_info(doi_name, data, requested_doi_state)
 
         _log.info(f"Done creating DOI for '{self.short_url}'.")
+
+    def _get_validated_metadata(self, doi_name: str) -> Dict[str, Any]:
+        """
+        Build the DataCite metadata and validate it against the schema.
+
+        Validation ignores the attributes which the DataCite API accepts but
+        which are not part of the kernel-4 schema (see
+        `DATACITE_API_ONLY_ATTRIBUTES`); the schema does not allow additional
+        properties, so validating them would always fail. They are part of the
+        returned metadata, because they do have to be submitted.
+
+        Parameters
+        ----------
+        doi_name : str
+            Full DOI name (prefix/suffix)
+
+        Returns
+        -------
+        dict
+            DataCite metadata, including the API-only attributes
+
+        Raises
+        ------
+        DOICreationException
+            If the metadata does not validate
+        """
+        data = self.get_datacite_metadata(doi_name)
+
+        if not schema45.validate(
+            {
+                key: value
+                for key, value in data.items()
+                if key not in self.DATACITE_API_ONLY_ATTRIBUTES
+            }
+        ):
+            raise DOICreationException(
+                "Given data does not validate according to DataCite Schema 4.5!"
+            )
+
+        return data
+
+    def update_doi_metadata(self) -> bool:
+        """
+        Push regenerated metadata for an already minted DOI to DataCite.
+
+        Improvements to the generated metadata otherwise only reach DOIs minted
+        afterwards. This regenerates the metadata from the current state of the
+        database and replaces the record at DataCite with it.
+
+        The landing page URL registered for the DOI is deliberately left alone:
+        it is not part of the metadata, and `get_full_url` returns the DOI URL
+        itself once a DOI exists, which must never become the target of that
+        same DOI.
+
+        The DOI state is not touched either, so a findable DOI stays findable.
+
+        Returns
+        -------
+        bool
+            True if the metadata at DataCite was replaced, False if it was
+            already up to date and nothing was sent.
+
+        Raises
+        ------
+        DOICreationException
+            If the object has no DOI, if the regenerated metadata does not
+            validate, or if the update fails at DataCite.
+        """
+        if not self.doi_name:
+            raise DOICreationException(
+                f"'{self.short_url}' has no DOI, so there is no metadata to update."
+            )
+
+        data = self._get_validated_metadata(self.doi_name)
+
+        if data == self.datacite_json:
+            _log.info(
+                f"Metadata of DOI '{self.doi_name}' is already up to date, "
+                "not contacting DataCite."
+            )
+            return False
+
+        try:
+            _log.info(f"Updating metadata of DOI '{self.doi_name}' at DataCite...")
+            rest_client = DataCiteRESTClient(
+                username=settings.DATACITE_USERNAME,
+                password=settings.DATACITE_PASSWORD,
+                prefix=settings.PUBLICATION_DOI_PREFIX,
+                url=settings.DATACITE_API_URL,
+            )
+            rest_client.update_doi(doi=self.doi_name, metadata=data)
+        except (DataCiteError, HttpError) as exc:
+            msg = f"Updating metadata of DOI '{self.doi_name}' failed, reason: {exc}"
+            _log.error(msg)
+            raise DOICreationException(msg) from exc
+
+        self.datacite_json = data
+        self.save()
+
+        _log.info(f"Done updating metadata of DOI '{self.doi_name}'.")
+        return True
 
     def _submit_to_datacite(
         self, doi_name: str, data: Dict[str, Any], doi_state: str
@@ -298,7 +424,7 @@ class PublicationDOIMixin(DOICreationMixin):
         # Build creators from authors_json
         creators = self._build_creators_from_authors()
 
-        return {
+        metadata = {
             # Mandatory fields
             "doi": doi_name,
             "creators": creators,
@@ -306,10 +432,19 @@ class PublicationDOIMixin(DOICreationMixin):
             "publisher": {"name": "contact.engineering"},
             "publicationYear": str(self.datetime.year),
             "types": {"resourceType": "Dataset", "resourceTypeGeneral": "Dataset"},
+            # Descriptors of the data itself: where it can be downloaded, in
+            # which format and how large it is. Without these, the DOI record
+            # only describes the landing page and gives no machine-readable
+            # route to the data.
+            "contentUrl": [self.container_url],
+            "formats": [CONTAINER_MIME_TYPE],
+            "language": METADATA_LANGUAGE,
             # Recommended/Optional fields
             "subjects": self._get_common_subjects(),
-            "dates": [{"dateType": "Submitted", "date": self.datetime.isoformat()}],
+            "dates": self._build_dates(),
+            "contributors": self._build_contributors(),
             "version": str(self.version),
+            "relatedIdentifiers": self._build_related_identifiers(),
             "rightsList": [
                 {
                     "rights": license_infos["title"],
@@ -318,7 +453,8 @@ class PublicationDOIMixin(DOICreationMixin):
                     "rightsIdentifier": license_infos["spdx_identifier"],
                     "rightsIdentifierScheme": "SPDX",
                     "lang": "en",
-                }
+                },
+                OPEN_ACCESS_RIGHTS,
             ],
             "descriptions": [
                 {
@@ -328,6 +464,180 @@ class PublicationDOIMixin(DOICreationMixin):
             ],
             "schemaVersion": "http://datacite.org/schema/kernel-4",
         }
+
+        # The container is built asynchronously after publication, so its size
+        # is usually not known yet when the DOI is minted. Report it whenever it
+        # is available; regenerating the metadata later fills it in.
+        container_size = self.container_size
+        if container_size is not None:
+            metadata["sizes"] = [f"{container_size} bytes"]
+
+        return metadata
+
+    def _build_related_identifiers(self) -> list:
+        """
+        Build the list of qualified references to related publications.
+
+        Two kinds of relation are known to the application:
+
+        - other versions of the same dataset, i.e. publications sharing the
+          same original surface, and
+        - the publication collections this publication belongs to.
+
+        Publications and collections without a DOI are skipped: an unminted
+        publication has no identifier to point at.
+
+        Returns
+        -------
+        list
+            List of DataCite relatedIdentifier dictionaries
+        """
+        related = []
+
+        if self.original_surface_id is not None:
+            other_versions = (
+                self.__class__.objects.filter(
+                    original_surface_id=self.original_surface_id
+                )
+                .exclude(pk=self.pk)
+                .exclude(doi_name="")
+                .order_by("version")
+            )
+            for other in other_versions:
+                related.append(
+                    {
+                        "relatedIdentifier": other.doi_name,
+                        "relatedIdentifierType": "DOI",
+                        "relationType": (
+                            "IsNewVersionOf"
+                            if other.version < self.version
+                            else "IsPreviousVersionOf"
+                        ),
+                        "resourceTypeGeneral": "Dataset",
+                    }
+                )
+
+        collections = (
+            self.publication_collection.exclude(doi_name="").order_by("pk").all()
+        )
+        for collection in collections:
+            related.append(
+                {
+                    "relatedIdentifier": collection.doi_name,
+                    "relatedIdentifierType": "DOI",
+                    "relationType": "IsPartOf",
+                    "resourceTypeGeneral": "Collection",
+                }
+            )
+
+        return related
+
+    def _build_dates(self) -> list:
+        """
+        Build the list of dates describing the history of the dataset.
+
+        Only the submission date was reported so far, which says when the
+        dataset was published but nothing about where the data comes from.
+        Report, as far as the application knows them:
+
+        - `Submitted`/`Available`: when the dataset was published. Publication
+          is immediate, so the two coincide, but `Available` is what carries the
+          precise publication date; `publicationYear` alone is only a year.
+        - `Created`: when the dataset it was published from was created. The
+          published dataset itself is a copy made at publication time, so its
+          own creation date would just repeat the publication date.
+        - `Collected`: when the measurements were taken, as a single date or as
+          an ISO 8601 interval.
+
+        Returns
+        -------
+        list
+            List of DataCite date dictionaries
+        """
+        published = self.datetime.isoformat()
+        dates = [
+            {"dateType": "Submitted", "date": published},
+            {
+                "dateType": "Available",
+                "date": published,
+                "dateInformation": "Date the dataset was published",
+            },
+        ]
+
+        original_surface = self.original_surface
+        if original_surface is not None and original_surface.created_at is not None:
+            dates.append(
+                {
+                    "dateType": "Created",
+                    "date": original_surface.created_at.isoformat(),
+                    "dateInformation": (
+                        "Date the dataset was created in contact.engineering"
+                    ),
+                }
+            )
+
+        measured = self._get_measurement_date_range()
+        if measured is not None:
+            dates.append(
+                {
+                    "dateType": "Collected",
+                    "date": measured,
+                    "dateInformation": "Date the measurements were taken",
+                }
+            )
+
+        return dates
+
+    def _get_measurement_date_range(self) -> str:
+        """
+        Return the range of measurement dates as an ISO 8601 string.
+
+        Returns
+        -------
+        str or None
+            A single date if all measurements were taken on the same day, an
+            interval `<first>/<last>` if not, and None if no measurement of
+            this dataset has a measurement date.
+        """
+        bounds = self.surface.topography_set.exclude(measurement_date=None).aggregate(
+            first=models.Min("measurement_date"), last=models.Max("measurement_date")
+        )
+        first, last = bounds["first"], bounds["last"]
+        if first is None:
+            return None
+        if first == last:
+            return first.isoformat()
+        return f"{first.isoformat()}/{last.isoformat()}"
+
+    def _build_contributors(self) -> list:
+        """
+        Build the list of contributors, i.e. who deposited the dataset.
+
+        The publishing user is not necessarily one of the authors, and their
+        role is a different one: the authors created the data, the publisher
+        put it into the repository. DataCite calls the latter a `DataCurator`.
+
+        Returns
+        -------
+        list
+            List of DataCite contributor dictionaries
+        """
+        contributor = {
+            "contributorType": "DataCurator",
+            "name": f"{self.publisher.last_name}, {self.publisher.first_name}",
+            "nameType": "Personal",
+            "givenName": self.publisher.first_name,
+            "familyName": self.publisher.last_name,
+        }
+        if self.publisher_orcid_id:
+            contributor["nameIdentifiers"] = [
+                {
+                    "schemeUri": "https://orcid.org",
+                    "nameIdentifierScheme": "ORCID",
+                    "nameIdentifier": f"https://orcid.org/{self.publisher_orcid_id}",
+                }
+            ]
+        return [contributor]
 
     def _build_creators_from_authors(self) -> list:
         """
@@ -408,6 +718,28 @@ class PublicationCollectionDOIMixin(DOICreationMixin):
         """Return DOI suffix for collections: 'ce-coll-{short_url}'."""
         return f"ce-coll-{self.short_url}"
 
+    def _build_related_identifiers(self) -> list:
+        """
+        Build qualified references to the publications this collection bundles.
+
+        Members without a DOI are skipped, as they have no identifier to point
+        at. A collection is immutable, so this list cannot go stale.
+
+        Returns
+        -------
+        list
+            List of DataCite relatedIdentifier dictionaries
+        """
+        return [
+            {
+                "relatedIdentifier": publication.doi_name,
+                "relatedIdentifierType": "DOI",
+                "relationType": "HasPart",
+                "resourceTypeGeneral": "Dataset",
+            }
+            for publication in self.publications.exclude(doi_name="").order_by("pk")
+        ]
+
     def get_datacite_metadata(self, doi_name: str) -> Dict[str, Any]:
         """
         Build DataCite metadata for a PublicationCollection.
@@ -459,7 +791,15 @@ class PublicationCollectionDOIMixin(DOICreationMixin):
             "types": {"resourceType": "Dataset", "resourceTypeGeneral": "Dataset"},
             # Recommended/Optional fields
             "subjects": PublicationDOIMixin._get_common_subjects(),
-            "dates": [{"dateType": "Submitted", "date": self.datetime.isoformat()}],
+            "dates": [
+                {"dateType": "Submitted", "date": self.datetime.isoformat()},
+                {
+                    "dateType": "Available",
+                    "date": self.datetime.isoformat(),
+                    "dateInformation": "Date the collection was published",
+                },
+            ],
+            "relatedIdentifiers": self._build_related_identifiers(),
             "rightsList": [
                 {
                     "rights": license_infos["title"],
@@ -468,7 +808,8 @@ class PublicationCollectionDOIMixin(DOICreationMixin):
                     "rightsIdentifier": license_infos["spdx_identifier"],
                     "rightsIdentifierScheme": "SPDX",
                     "lang": "en",
-                }
+                },
+                OPEN_ACCESS_RIGHTS,
             ],
             "schemaVersion": "http://datacite.org/schema/kernel-4",
         }
