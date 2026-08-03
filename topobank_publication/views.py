@@ -5,7 +5,8 @@ import pydantic
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError
-from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden
+from django.http import (Http404, HttpResponseBadRequest,
+                         HttpResponseForbidden, JsonResponse)
 from django.shortcuts import HttpResponse, get_object_or_404, redirect
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import api_view
@@ -14,12 +15,19 @@ from rest_framework.response import Response
 from topobank.manager.models import Surface
 
 from .models import Publication, PublicationCollection
+from .schema_org import JSONLD_CONTENT_TYPE, schema_org_dataset
 from .serializers import PublicationCollectionSerializer, PublicationSerializer
+from .signposting import add_signposting
 from .utils import (EMPTY_DATASET_MESSAGE, AlreadyPublishedException,
                     NewPublicationTooFastException, PublicationException,
                     describe_unready_measurements, unready_measurements)
 
 _log = logging.getLogger(__name__)
+
+# Media types for which the schema.org description is served instead of a
+# redirect. The second one is what DataCite uses for the same representation and
+# what several harvesters ask for.
+JSONLD_ACCEPT_TYPES = (JSONLD_CONTENT_TYPE, "application/vnd.schemaorg.ld+json")
 
 
 @api_view(["POST"])
@@ -239,7 +247,7 @@ def download_container(request, short_url):
         pub.renew_container()
 
     if getattr(settings, "USE_S3_STORAGE", False):
-        return redirect(pub.container.url)
+        return add_signposting(redirect(pub.container.url), pub, request)
 
     response = HttpResponse(
         pub.container.read(), content_type="application/x-zip-compressed"
@@ -247,7 +255,19 @@ def download_container(request, short_url):
     response["Content-Disposition"] = (
         f'attachment; filename="{os.path.basename(pub.container_storage_path)}"'
     )
-    return response
+    return add_signposting(response, pub, request)
+
+
+def metadata(request, short_url):
+    """Serve the schema.org description of a published dataset as JSON-LD."""
+    pub = get_object_or_404(Publication, short_url=short_url)
+    return add_signposting(
+        JsonResponse(
+            schema_org_dataset(pub, request), content_type=JSONLD_CONTENT_TYPE
+        ),
+        pub,
+        request,
+    )
 
 
 def go(request, short_url):
@@ -257,15 +277,26 @@ def go(request, short_url):
     except Publication.DoesNotExist:
         raise Http404()
 
-    if (
-        "HTTP_ACCEPT" in request.META
-        and "application/json" in request.META["HTTP_ACCEPT"]
-    ):
-        return redirect(pub.get_api_url())
+    accept = request.META.get("HTTP_ACCEPT", "")
+
+    # Content negotiation. The JSON-LD types are checked first because they are
+    # the more specific ones; note that "application/ld+json" does not contain
+    # "application/json" as a substring.
+    if any(content_type in accept for content_type in JSONLD_ACCEPT_TYPES):
+        response = JsonResponse(
+            schema_org_dataset(pub, request), content_type=JSONLD_CONTENT_TYPE
+        )
+    elif "application/json" in accept:
+        response = redirect(pub.get_api_url())
     else:
-        return redirect(
+        response = redirect(
             f"/ui/dataset-detail/{pub.surface.pk}/"
         )  # <- topobank does not know this
+
+    # Signpost the dataset on every representation of this route, including the
+    # redirects: a client which only issues a HEAD request here can then still
+    # find the identifier, the metadata and the data.
+    return add_signposting(response, pub, request)
 
 
 class PublicationViewSet(

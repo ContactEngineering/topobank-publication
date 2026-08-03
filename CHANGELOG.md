@@ -4,17 +4,14 @@
 
 - API: Publication now requires every measurement of a dataset to have been
   processed successfully *and* to have complete metadata in the sense of
-  `Topography.is_metadata_complete`. Datasets with failed, still-processing or
-  not-yet-started measurements, with measurements whose physical size or unit is
-  missing, and datasets without any measurement, are rejected with HTTP 400 where
-  they were previously published. Publication creates a permanently read-only
-  copy, so such a measurement would otherwise stay broken forever under an already
-  minted DOI. Note that a task state of SUCCESS on its own is not sufficient:
-  unless `TOPOBANK_REJECT_INCOMPLETE_METADATA` is set, inspecting a file with
-  missing metadata succeeds but silently skips thumbnail, deepzoom, squeezed data
-  file and bandwidth generation
+  `Topography.is_metadata_complete`
 - ENH: New `GET /go/publishable/<surface_id>/` endpoint reporting whether a dataset
   can be published and, if not, which measurements are holding it up and why
+- ENH: Published datasets are now described as schema.org JSON-LD, served from the
+  new `GET /go/<short_url>/metadata/` endpoint and by content negotiation on
+  `GET /go/<short_url>/` for `application/ld+json`
+- ENH: The `/go/` routes now carry signposting typed links (`cite-as`, `describedby`,
+  `item`, `license`, `author`, `type`) in the HTTP `Link` header
 - ENH: DataCite metadata now describes the data itself and not just its landing page:
   `contentUrl` points at the container download, `formats` reports its MIME type,
   `language` the language of the descriptive metadata, and `sizes` the container size
