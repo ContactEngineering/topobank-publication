@@ -37,6 +37,7 @@ dev = [
     'pytest',
     'pytest-django>=4.4.0',
     'pytest-mock',
+    'pytest-cov',
     'factory-boy',
     'django-celery-results',
     'freezegun',
@@ -62,3 +63,7 @@ artifacts = ["topobank_publication/static/**"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["topobank_publication"]
+
+[tool.coverage.run]
+# Generated migration modules would dilute the coverage numbers
+omit = ["*/migrations/*"]
