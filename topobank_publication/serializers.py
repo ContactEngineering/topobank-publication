@@ -105,6 +105,29 @@ class PublicationSerializer(serializers.HyperlinkedModelSerializer):
         )
 
 
+class PublicationSummarySerializer(PublicationSerializer):
+    """Compact publication summary embedded in v2 surface responses.
+
+    Carries what a dataset list row shows — DOI, license, authors, date,
+    version and the download route — so listing surfaces requires no follow-up
+    request per published dataset. `citation` and `datacite_json` are left to
+    the full serializer; they are detail-page material.
+    """
+
+    class Meta(PublicationSerializer.Meta):
+        fields = [
+            "url",
+            "id",
+            "original_surface",
+            "version",
+            "datetime",
+            "license",
+            "authors_json",
+            "doi_name",
+            "download_url",
+        ]
+
+
 class PublicationCollectionSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = PublicationCollection

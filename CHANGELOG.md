@@ -1,5 +1,12 @@
 # Changelog for plugin *topobank-publication*
 
+## 1.13.0 (2026-08-04)
+
+- ENH: The v2 surface serializer carries an embedded publication summary (DOI,
+  license, authors, date, version, download route) plus `version` and
+  `nb_versions`, so the dataset list renders published rows without fetching
+  the publication separately per row
+
 ## 1.12.0 (2026-08-03)
 
 - ENH: The surface serializer reports `version` and `nb_versions`, so the dataset
