@@ -10,7 +10,8 @@ INSTALLED_APPS = INSTALLED_APPS + [  # noqa: F405
 
 ROOT_URLCONF = "publication_test_urls"
 
-MIDDLEWARE += ["topobank_orcid.users.middleware.anonymous_user_middleware"]  # noqa: F405
+MIDDLEWARE += ["topobank.testing.mock_auth.users.middleware.anonymous_user_middleware"]
+
 
 DATACITE_USERNAME = env("DATACITE_USERNAME", default="test")
 DATACITE_PASSWORD = env("DATACITE_PASSWORD", default="test")
