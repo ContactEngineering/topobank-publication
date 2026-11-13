@@ -1,142 +1,165 @@
 # Changelog for plugin *topobank-publication*
 
-## 1.13.0 (2026-08-04)
+<!--
+Style for this changelog (keep to it so entries stay uniform):
 
-- ENH: The v2 surface serializer carries an embedded publication summary (DOI,
-  license, authors, date, version, download route) plus `version` and
-  `nb_versions`, so the dataset list renders published rows without fetching
-  the publication separately per row
+- Newest version first. Heading `vX.Y.Z (DDMonYY)`, underlined with dashes.
+  A version not yet released is headed `vX.Y.Z (not yet released)`.
+- One bullet per user-visible change, at most two lines (about 200
+  characters). Say what changed for the user and, if useful, why or by how
+  much. Omit internals: no function, class, file or variable names, no
+  environment variables, no commit or PR references.
+- Start every bullet with one of: `ENH:` (new feature), `BUG:` (fix),
+  `API:` (interface change), `PERF:` (speed or memory), `MAINT:`, `TST:`,
+  `DOC:`, `BUILD:`, `CI:`.
+- Small related fixes may share one bullet. No trailing period on bullets.
+-->
 
-## 1.12.0 (2026-08-03)
+v1.13.0 (04Aug26)
+-----------------
 
-- ENH: The surface serializer reports `version` and `nb_versions`, so the dataset
-  list can say which version a row is and that there are others
-- API: Publication now requires every measurement of a dataset to have been
-  processed successfully *and* to have complete metadata in the sense of
-  `Topography.is_metadata_complete`
-- ENH: New `GET /go/publishable/<surface_id>/` endpoint reporting whether a dataset
-  can be published and, if not, which measurements are holding it up and why
-- ENH: New `GET /go/sitemap.xml` listing all published datasets and collections, so
-  that crawlers can discover them without executing the JavaScript of the app
-- ENH: Published datasets are now described as schema.org JSON-LD, served from the
-  new `GET /go/<short_url>/metadata/` endpoint and by content negotiation on
-  `GET /go/<short_url>/` for `application/ld+json`
-- ENH: The `/go/` routes now carry signposting typed links (`cite-as`, `describedby`,
-  `item`, `license`, `author`, `type`) in the HTTP `Link` header
-- ENH: DataCite metadata now describes the data itself and not just its landing page:
-  `contentUrl` points at the container download, `formats` reports its MIME type,
-  `language` the language of the descriptive metadata, and `sizes` the container size
-  once it has been built
-- ENH: DataCite metadata of publications and collections now states the access
-  condition (`info:eu-repo/semantics/openAccess`) next to the license
-- ENH: DataCite metadata now expresses the relations between published objects:
-  the version chain of a dataset (`IsNewVersionOf`/`IsPreviousVersionOf`) and the
-  membership of a dataset in a collection (`IsPartOf`/`HasPart`)
-- ENH: DataCite metadata now carries provenance information: the precise publication
-  date (`Available`), the creation date of the dataset the publication was made from
-  (`Created`), the range of measurement dates (`Collected`) and the publishing user
-  as a `DataCurator` contributor
-- ENH: New `update_doi_metadata` management command which regenerates the DataCite
-  metadata of already minted DOIs and pushes it to DataCite, so that metadata
-  improvements also reach datasets published earlier
+- ENH: The v2 dataset API embeds a publication summary (DOI, license, authors,
+  date, version, download), so the dataset list needs no request per row
 
-## 1.11.0 (2026-08-02)
+v1.12.0 (03Aug26)
+-----------------
 
-- ENH: OAI-PMH endpoint for metadata harvesting in Dublin Core (`oai_dc`) format
-- ENH: Asynchronous creation of the container files of published datasets
-- BUG: Concurrent publications are serialized; a version collision returns HTTP 409
-  instead of leaving orphaned surfaces behind
-- BUG: A failed publication is kept for reconciliation by `complete_dois` unless the
-  DOI was definitely not created remotely
-- BUG: The anonymous publication API no longer exposes the publisher's email address,
-  `is_staff` or `date_joined`
-- BUG: `renew_containers` follows its documented policy and tolerates storage errors
-- BUG: `publish_collection` requires publisher ownership and runs in a transaction
-- MAINT: Migrated from the custom plugin architecture to a standard Django application
-- MAINT: Removed obsolete download functionality (`analysis:download`)
-- MAINT: Use the standalone `topobank-rest-api` instead of `ce-ui`
-- MAINT: User and authentication moved to `topobank-orcid`; removed the organization
-  permission model
+- ENH: The dataset API reports the version of a dataset and how many versions
+  exist, so the dataset list can say which version a row is
+- API: Publishing requires every measurement of a dataset to be processed
+  successfully and to have complete metadata
+- ENH: A new endpoint reports whether a dataset can be published and, if not,
+  which measurements hold it up and why
+- ENH: A sitemap lists all published datasets and collections, so crawlers find
+  them without running the app's JavaScript
+- ENH: Published datasets are described as schema.org JSON-LD, served at their
+  own metadata address and by content negotiation on the short link
+- ENH: Short links carry signposting typed links (cite-as, describedby, item,
+  license, author, type) in the HTTP Link header
+- ENH: DataCite metadata describes the data itself, not just its landing page:
+  download address, file format, metadata language and container size
+- ENH: DataCite metadata of publications and collections states open access next
+  to the license
+- ENH: DataCite metadata records the version chain of a dataset and the
+  membership of datasets in collections
+- ENH: DataCite metadata records provenance: publication and creation dates, the
+  range of measurement dates and the publishing user as data curator
+- ENH: A new management command regenerates the DataCite metadata of existing
+  DOIs and pushes it, so earlier publications gain these improvements
+
+v1.11.0 (02Aug26)
+-----------------
+
+- ENH: Metadata harvesting through OAI-PMH in Dublin Core format
+- ENH: The container files of published datasets are created asynchronously
+- BUG: Concurrent publications are serialized; a version collision returns HTTP
+  409 instead of leaving orphaned datasets behind
+- BUG: A failed publication is kept for later reconciliation of its DOI unless
+  the DOI was definitely not created at DataCite
+- BUG: The anonymous publication API no longer exposes the publisher's email
+  address, staff status or registration date
+- BUG: Renewing container files follows its documented policy and tolerates
+  storage errors
+- BUG: A collection may only contain publications by the user creating it, and
+  is created atomically
+- MAINT: Migrated from the custom plugin architecture to a standard Django
+  application
+- MAINT: Removed obsolete download functionality
+- MAINT: Uses the standalone topobank-rest-api package instead of ce-ui
+- MAINT: Users and authentication moved to topobank-orcid; removed the
+  organization permission model
 - BUILD: Changed build system to hatchling
-- BUILD: Force-include the app's static files in the distribution; they were missing
-  from the wheel because `.gitignore` matched `topobank_publication/static/`
-- BUILD: Anchored the `static/` pattern in `.gitignore` to the repository root
+- BUILD: The distribution includes the app's static files again, which an
+  over-broad ignore pattern had kept out of the wheel
 
-## 1.10.0 (2025-12-16)
+v1.10.0 (16Dec25)
+-----------------
 
 - ENH: Publication collections
-- UPSTREAM: Updated for API changes in topobank 1.66.0
-- TST: Datacite integration tests
+- MAINT: Updated for API changes in topobank 1.66.0
+- TST: Integration tests against DataCite
 
-## 1.9.0 (2025-07-28)
+v1.9.0 (28Jul25)
+----------------
 
-- UPSTREAM: Serializer has been moved to the `v1` module in `topobank`
-- UPSTREAM: Writing container is now part of the `export_zip` module of `topobank`
+- MAINT: Updated for topobank, which now provides the publication serializer
+  in its v1 API and writes the dataset containers
 
-## 1.8.2 (2025-04-24)
+v1.8.2 (24Apr25)
+----------------
 
 - BUG: Prevent duplicate publications
 
-## 1.8.1 (2025-04-02)
+v1.8.1 (02Apr25)
+----------------
 
-- MAINT: Default to simple router in production
-- MAINT: Removed bleach dependency
+- MAINT: In production the API no longer serves a browsable index of its
+  routes
+- MAINT: Removed the bleach dependency
 
-## 1.8.0 (2025-03-17)
+v1.8.0 (17Mar25)
+----------------
 
 - ENH: New publication flow
 - ENH: REST API for publication
 
-## 1.7.4 (2025-03-04)
+v1.7.4 (04Mar25)
+----------------
 
 - MAINT: Prettified error pages
 
-## 1.7.3 (2025-03-04)
+v1.7.3 (04Mar25)
+----------------
 
-- BUG: Publisher should be person that published a digital surface twin (was
-  that created it)
+- BUG: The publisher is the person who published a digital surface twin, not
+  the person who created it
 
-## 1.7.2 (2025-02-27)
+v1.7.2 (27Feb25)
+----------------
 
-- BUG: Fixing checking for access to original surface if original surface does
-  not exist
-- BUG: Use `PermissionDenied` rather than `PermissionError` so that permission
-  errors are reported to the user
+- BUG: Fixed the access check when the original dataset no longer exists
+- BUG: Permission errors are reported to the user
 
-## 1.7.1 (2025-02-11)
+v1.7.1 (11Feb25)
+----------------
 
-- BUG: Fixed publishing page when measurements are missing
-- BUG: Update used icons to fontawesome 6
+- BUG: Fixed the publishing page when measurements are missing
+- BUG: Updated icons to FontAwesome 6
 
-## 1.7.0 (2024-11-13)
+v1.7.0 (13Nov24)
+----------------
 
-- MAINT: Updates for API changes in topobank 1.50.0
+- MAINT: Updated for API changes in topobank 1.50.0
 
-## 1.6.4 (2024-03-22)
- 
-- BUG: Fixed version discovery
+v1.6.4 (22Mar24)
+----------------
 
-## 1.6.3 (2024-03-21)
+- BUG: Fixed detection of the package version
+
+v1.6.3 (21Mar24)
+----------------
 
 - BUILD: Changed build system to flit
 
-## 1.6.2 (2024-03-12)
+v1.6.2 (12Mar24)
+----------------
 
 - MAINT: Compatibility with topobank 1.7.0
 
-## 1.6.1 (2024-02-05)
+v1.6.1 (05Feb24)
+----------------
 
-- MAINT: Fixed typo in publishing screen
+- MAINT: Fixed a typo in the publishing screen
 
-## 1.6.0 (2024-01-26)
+v1.6.0 (26Jan24)
+----------------
 
-- ENH: /go links return API redirect if `application/json` is requested,
-  otherwise HTML redirect (#9)
-- ENH: API endpoint for publication now returns download link
-- BUG: Fix to /go links (#8)
-- MAINT: Adding gitignore
+- ENH: Short links redirect to the API when JSON is requested and to the web
+  page otherwise, which also fixes broken short links
+- ENH: The publication API returns a download link
 
-## 1.5.0 (2024-01-20)
+v1.5.0 (20Jan24)
+----------------
 
-- MAINT: Split `publication` module from main TopoBank
-- MAINT: Enforcing PEP-8 style
+- MAINT: Split the publication module from the main TopoBank
+- MAINT: Code follows PEP 8 style
