@@ -8,6 +8,9 @@ archive from the live dataset.
 """
 
 import pytest
+from django.core import mail
+from django.core.cache import cache
+from django.core.files.storage import default_storage
 from django.shortcuts import reverse
 from rest_framework import status
 from topobank.testing.factories import UserFactory
@@ -70,6 +73,64 @@ def test_download_of_unknown_publication_is_not_found(client):
         )
     )
     assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+#
+# Data that is missing from storage
+#
+
+
+def _download(client, pub):
+    return client.get(
+        reverse("publication:download-container", kwargs={"short_url": pub.short_url})
+    )
+
+
+@pytest.fixture
+def pub_with_lost_datafile(example_pub, settings):
+    """A publication one of whose data files was deleted from storage."""
+    settings.ADMINS = [("Admin", "admin@example.com")]
+    cache.clear()
+    datafile = example_pub.surface.topography_set.first().datafile
+    default_storage.delete(datafile.file.name)
+    yield example_pub
+    cache.clear()
+
+
+@pytest.mark.django_db
+def test_download_with_missing_datafile_is_unavailable_and_reported(
+    client, pub_with_lost_datafile
+):
+    pub = pub_with_lost_datafile
+    assert not pub.has_container
+
+    response = _download(client, pub)
+
+    # A clear message instead of an internal server error
+    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    assert b"administrators have been notified" in response.content
+    pub.refresh_from_db()
+    assert not pub.has_container
+    # The admins learn which file is missing
+    (email,) = mail.outbox
+    assert email.to == ["admin@example.com"]
+    assert "Missing file in storage" in email.subject
+
+
+@pytest.mark.django_db
+def test_failed_container_is_not_rebuilt_on_every_visit(
+    client, pub_with_lost_datafile, monkeypatch
+):
+    pub = pub_with_lost_datafile
+    assert _download(client, pub).status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+
+    def must_not_rebuild(self):
+        raise AssertionError("the container was rebuilt")
+
+    monkeypatch.setattr(type(pub), "renew_container", must_not_rebuild)
+    for _ in range(3):
+        assert _download(client, pub).status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    assert len(mail.outbox) == 1
 
 
 #

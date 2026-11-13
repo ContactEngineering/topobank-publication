@@ -1,5 +1,10 @@
 # Changelog for plugin *topobank-publication*
 
+## Unreleased
+
+- BUG: Downloading a published dataset whose data is partly missing shows a
+  clear message instead of failing, and is not retried on every visit
+
 ## 1.13.0 (2026-08-04)
 
 - ENH: The v2 surface serializer carries an embedded publication summary (DOI,

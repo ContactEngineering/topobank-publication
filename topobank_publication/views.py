@@ -4,6 +4,7 @@ import os.path
 import pydantic
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 from django.db import IntegrityError
 from django.http import (Http404, HttpResponseBadRequest,
                          HttpResponseForbidden, JsonResponse)
@@ -233,6 +234,26 @@ def go_collection(request, short_url):
     return redirect(f"/ui/dataset-collection/{collection.id}")
 
 
+CONTAINER_UNAVAILABLE_MESSAGE = (
+    "The download of this dataset is currently unavailable because some of its "
+    "data could not be read. The administrators have been notified. Please try "
+    "again later."
+)
+
+
+def _container_unavailable():
+    response = HttpResponse(
+        CONTAINER_UNAVAILABLE_MESSAGE,
+        status=503,
+        content_type="text/plain; charset=utf-8",
+    )
+    # Django logs every 5xx response as an error, which mails the admins on
+    # each visit. The missing file was already reported (once per interval),
+    # so mark the response as logged, as Django's own log_response does.
+    response._has_been_logged = True
+    return response
+
+
 @api_view(["GET"])
 def download_container(request, short_url):
     """Download the archived container of a published dataset."""
@@ -244,7 +265,26 @@ def download_container(request, short_url):
         return HttpResponseForbidden()
 
     if not pub.has_container:
-        pub.renew_container()
+        # Building the container reads every data file of the dataset. If one
+        # is missing from storage, it cannot be built until an admin restores
+        # the file; topobank reports such files to the admins. Remember the
+        # failure for a while instead of rebuilding a large archive in memory
+        # on every visit.
+        failure_key = f"publication-container-unavailable-{pub.pk}"
+        if cache.get(failure_key):
+            return _container_unavailable()
+        try:
+            pub.renew_container()
+        except FileNotFoundError as exc:
+            _log.error(
+                f"Cannot build the container of publication '{pub.short_url}': {exc}"
+            )
+            cache.set(
+                failure_key,
+                True,
+                getattr(settings, "PUBLICATION_CONTAINER_RETRY_INTERVAL", 60 * 60),
+            )
+            return _container_unavailable()
 
     if getattr(settings, "USE_S3_STORAGE", False):
         return add_signposting(redirect(pub.container.url), pub, request)
